@@ -83,7 +83,7 @@ def _parse_bse_api_payload(payload):
 
 def _fetch_bse_master_fallback():
     """Load BSE cash-equity scrip codes from the daily instrument-master mirror."""
-    response = requests.get(BSE_MASTER_URL, headers=HEADERS, timeout=35)
+    response = requests.get(BSE_MASTER_URL, timeout=35)
     response.raise_for_status()
     with zipfile.ZipFile(BytesIO(response.content)) as archive:
         csv_names = [name for name in archive.namelist() if name.lower().endswith((".csv", ".txt"))]
@@ -97,7 +97,7 @@ def _fetch_bse_master_fallback():
     instrument = df["Instrument"].fillna("").astype(str).str.strip().str.upper()
     # BSE equity scrip codes are in the 500000-599999 range. Exclude the
     # F-coded debt instruments present in the same consolidated master.
-    equity = df[token.between(500000, 599999) & instrument.ne("F")].copy()
+    equity = df[token.between(500000, 599999) & ~instrument.isin(["F", "G"])].copy()
     equity["Token"] = token.loc[equity.index].astype("int64").astype(str)
     out = pd.DataFrame({
         "symbol": equity["Token"].str.strip(),
