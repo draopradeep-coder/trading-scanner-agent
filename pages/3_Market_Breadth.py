@@ -37,7 +37,7 @@ if not state.get("complete"):
     if st.button(label, type="primary", use_container_width=True):
         end = min(state["offset"] + CHUNK_SIZE, len(universe))
         batch_universe = universe.iloc[state["offset"]:end]
-        batch_label = "Calculating batch {:,}–{: ,} of {:,}...".format(state["offset"] + 1, end, len(universe))
+        batch_label = "Calculating batch {:,}–{:,} of {:,}...".format(state["offset"] + 1, end, len(universe))
         with st.spinner(batch_label):
             data, errors = analyze_breadth(batch_universe, batch_size=40)
         state["rows"].extend(data.to_dict("records"))
