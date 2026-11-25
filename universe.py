@@ -1,20 +1,16 @@
-"""Automatic NSE + BSE listed-equity universe loader for TraderPrp.
-
-Downloads exchange security masters, normalizes common columns, and combines
-records while retaining exchange, symbol, ISIN and security name.
-"""
+"""Automatic NSE + BSE listed-equity universe loader for TraderPrp."""
 from io import BytesIO
 import pandas as pd
 import requests
 
 NSE_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
-BSE_URL = "https://www.bseindia.com/downloads1/EquityList.csv"
-
+BSE_API_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123 Safari/537.36",
     "Accept": "text/csv,application/octet-stream,*/*",
     "Referer": "https://www.nseindia.com/",
 }
+BSE_HEADERS = {**HEADERS, "Accept": "application/json", "Referer": "https://www.bseindia.com/"}
 
 def _download_csv(url):
     response = requests.get(url, headers=HEADERS, timeout=25)
@@ -46,13 +42,20 @@ def fetch_nse_universe():
     return out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
 
 def fetch_bse_universe():
-    df = _clean_columns(_download_csv(BSE_URL))
-    symbol_col = next((c for c in ("SCRIP_CODE", "SC_CODE", "CODE") if c in df.columns), None)
+    response = requests.get(BSE_API_URL, headers=BSE_HEADERS, params={"Group": "", "Scripcode": "", "industry": "", "segment": "Equity", "status": "Active"}, timeout=30)
+    response.raise_for_status()
+    payload = response.json()
+    if isinstance(payload, dict):
+        payload = payload.get("Table", payload.get("data", payload.get("Data", [])))
+    if not isinstance(payload, list) or not payload:
+        raise ValueError("BSE API returned an empty or unexpected securities response.")
+    df = _clean_columns(pd.DataFrame(payload))
+    symbol_col = next((c for c in ("SCRIP_CD", "SCRIP_CODE", "SC_CODE", "CODE") if c in df.columns), None)
     name_col = next((c for c in ("ISSUER_NAME", "SCRIP_NAME", "NAME") if c in df.columns), None)
-    isin_col = next((c for c in ("ISIN_NUMBER", "ISIN") if c in df.columns), None)
+    isin_col = next((c for c in ("ISIN_NUMBER", "ISIN", "ISIN_CODE") if c in df.columns), None)
     group_col = next((c for c in ("GROUP", "SCRIP_GROUP") if c in df.columns), None)
     if not symbol_col:
-        raise ValueError("BSE scrip-code column not found in downloaded master.")
+        raise ValueError("BSE scrip-code field not found in API response: " + ", ".join(df.columns))
     out = pd.DataFrame({
         "symbol": df[symbol_col].astype(str).str.strip(),
         "name": df[name_col].astype(str).str.strip() if name_col else "",
@@ -78,5 +81,4 @@ def load_full_universe():
     universe["symbol"] = universe["symbol"].astype(str).str.strip()
     universe["name"] = universe["name"].astype(str).str.strip()
     universe = universe.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
-    # Companies traded on both exchanges remain represented on both exchange rows.
     return universe, errors
