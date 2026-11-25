@@ -130,9 +130,18 @@ with tab2:
     if type_col:
         intraday = df[
             df[type_col].astype(str).str.lower().str.contains("intraday", na=False)
-        ]
+        ].copy()
     else:
-        intraday = df
+        intraday = df.copy()
+
+    if stock_col:
+        search_stock = st.text_input("🔎 Search Intraday Stock")
+        if search_stock:
+            intraday = intraday[
+                intraday[stock_col].astype(str).str.contains(
+                    search_stock, case=False, na=False
+                )
+            ]
 
     st.dataframe(intraday, use_container_width=True, hide_index=True)
 
