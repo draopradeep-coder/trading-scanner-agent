@@ -102,6 +102,23 @@ stop_col = find_column(df, ["stop_loss", "stop loss", "sl"])
 target_col = find_column(df, ["target", "target_1", "target1", "tp1"])
 type_col = find_column(df, ["trade_type", "type", "category", "strategy"])
 
+# Detected column guide
+with st.expander("🔎 View Detected Excel Columns", expanded=False):
+    detected_columns = pd.DataFrame([
+        {"Dashboard Field": label, "Detected Excel Column": column if column is not None else "Not detected", "Status": "Ready" if column is not None else "Needs attention"}
+        for label, column in [
+            ("Stock Name / Symbol", stock_col),
+            ("Signal", signal_col),
+            ("Current Price", price_col),
+            ("Entry Price", entry_col),
+            ("Stop Loss", stop_col),
+            ("Target", target_col),
+            ("Trade Type", type_col),
+        ]
+    ])
+    st.dataframe(detected_columns, use_container_width=True, hide_index=True)
+    st.caption("The dashboard recognizes common headers such as Stock, Symbol, Ticker, Signal, Action, LTP, Entry, SL, Target, Type, Intraday and Swing. If a field is not detected, rename its Excel column to a recognized header and upload again.")
+
 # Data quality checks
 st.subheader("🧹 Data Quality Check")
 quality_col1, quality_col2, quality_col3 = st.columns(3)
