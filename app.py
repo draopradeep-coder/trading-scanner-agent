@@ -107,6 +107,15 @@ if signal_col:
 col4, col5 = st.columns(2)
 col4.metric("SELL Signals", int(sell_count))
 col5.metric("Other Signals", int(total_stocks - buy_count - hold_count - sell_count))
+st.subheader("📊 Signal Distribution")
+
+signal_chart = pd.DataFrame({
+    "Signal": ["BUY", "HOLD", "SELL", "Other"],
+    "Count": [int(buy_count), int(hold_count), int(sell_count),
+              int(total_stocks - buy_count - hold_count - sell_count)]
+})
+
+st.bar_chart(signal_chart.set_index("Signal"))
 st.divider()
 
 # Tabs
