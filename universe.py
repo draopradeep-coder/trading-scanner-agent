@@ -4,7 +4,7 @@ import zipfile
 import pandas as pd
 import requests
 
-UNIVERSE_BUILD = "BSE beta v1 · 2026-11-25"
+UNIVERSE_BUILD = "BSE beta v2 · Sec-Fetch-Site · 2026-11-25"
 
 NSE_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 BSE_API_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w"
@@ -23,6 +23,7 @@ BSE_HEADERS = {
     "Sec-CH-UA": '"Google Chrome";v="155", "Chromium";v="155", "Not?A_Brand";v="99"',
     "Sec-CH-UA-Mobile": "?0",
     "Sec-CH-UA-Platform": '"Windows"',
+    "Sec-Fetch-Site": "same-origin",
     "Accept": "application/json, text/plain, */*",
     "Accept-Encoding": "gzip, deflate, br",
     "Accept-Language": "en-US,en;q=0.9",
