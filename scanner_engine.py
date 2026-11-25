@@ -1,5 +1,5 @@
-"""Daily technical scanner for NSE/BSE cash equities; resumable local progress.""" 
-import json, os
+"""Daily technical scanner for NSE/BSE cash equities; resumable local progress."""
+import json, os, time
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -18,9 +18,19 @@ def _scan_one_status(row):
     exchange=str(row.get("exchange","")).upper()
     if not symbol: return {"status":"failed","reason":"Missing symbol"}
     ticker=symbol+(".NS" if exchange=="NSE" else ".BO")
+    df=None
+    last_error=""
+    # Limited retries with exponential backoff; no parallel calls to Yahoo.
+    for attempt in range(3):
+        try:
+            df=yf.download(ticker,period="6mo",interval="1d",auto_adjust=True,progress=False,threads=False)
+            if df is not None and not df.empty and len(df)>=55: break
+            last_error="Insufficient or unavailable daily data"
+        except Exception as e:
+            last_error=str(e)[:180]
+        if attempt<2: time.sleep(1.5*(2**attempt))
+    if df is None or df.empty or len(df)<55: return {"status":"failed","reason":last_error or "Insufficient or unavailable daily data"}
     try:
-        df=yf.download(ticker,period="6mo",interval="1d",auto_adjust=True,progress=False,threads=False)
-        if df is None or df.empty or len(df)<55: return {"status":"failed","reason":"Insufficient or unavailable daily data"}
         if isinstance(df.columns,pd.MultiIndex): df.columns=df.columns.get_level_values(0)
         close,high,low,volume=[df[c].squeeze() for c in ("Close","High","Low","Volume")]
         last=float(close.iloc[-1]); sma20=float(close.rolling(20).mean().iloc[-1]); sma50=float(close.rolling(50).mean().iloc[-1]); rsi=float(_rsi(close).iloc[-1])
@@ -46,7 +56,7 @@ def clear_progress():
     except FileNotFoundError: pass
 
 def scan_batch(universe, batch_size=40, retry_failed=False):
-    """Process next batch, persist per-stock outcomes, and return state + DataFrames."""
+    """Process next batch with retries, paced requests, and persistent outcomes."""
     rows=universe.to_dict("records")
     state=load_progress() or {"records":{},"universe_total":len(rows)}
     records=state.get("records",{})
@@ -59,9 +69,11 @@ def scan_batch(universe, batch_size=40, retry_failed=False):
         if existing and existing.get("status")=="failed" and not retry_failed: continue
         pending.append((i,key,row))
     pending=pending[:max(1,int(batch_size))]
-    for _,key,row in pending:
+    for n,(_,key,row) in enumerate(pending):
         outcome=_scan_one_status(row)
         records[key]={"symbol":str(row.get("symbol","")),"exchange":str(row.get("exchange","")),"status":outcome["status"],"reason":outcome.get("reason",""),"candidate":bool(outcome.get("candidate",False)),"result":outcome.get("result")}
+        # Pace calls to reduce upstream throttling.
+        if n<len(pending)-1: time.sleep(0.35)
     state["records"]=records
     state["updated"]=pd.Timestamp.now().isoformat()
     with open(STATE_FILE,"w",encoding="utf-8") as f: json.dump(state,f,ensure_ascii=False)
