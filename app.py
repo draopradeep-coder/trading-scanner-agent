@@ -135,7 +135,7 @@ if available_trade_fields:
     st.caption("Non-numeric values in trade-level columns (currency symbols and commas are ignored):")
     numeric_cols = st.columns(len(available_trade_fields))
     for numeric_col, (label, column) in zip(numeric_cols, available_trade_fields):
-        cleaned_values = df[column].astype(str).str.replace(r"[₹,\\s]", "", regex=True)
+        cleaned_values = df[column].astype(str).str.replace(r"[₹,\s]", "", regex=True)
         parsed_values = pd.to_numeric(cleaned_values, errors="coerce")
         invalid_values = int((~df[column].isna() & df[column].astype(str).str.strip().ne("") & parsed_values.isna()).sum())
         numeric_col.metric(f"Invalid {label}", invalid_values)
