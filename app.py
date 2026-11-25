@@ -131,6 +131,12 @@ if signal_col:
         st.info("No BUY signals are available in the current scan.")
     else:
         st.dataframe(buy_rows, use_container_width=True, hide_index=True)
+        st.download_button(
+            "⬇️ Download BUY Watchlist",
+            data=buy_rows.to_csv(index=False).encode("utf-8"),
+            file_name="BUY_Watchlist.csv",
+            mime="text/csv"
+        )
 else:
     st.info("Signal column was not detected in the uploaded report.")
 
