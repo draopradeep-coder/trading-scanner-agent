@@ -18,8 +18,7 @@ uploaded = st.sidebar.file_uploader(
 )
 
 if uploaded is None:
-    st.info("Upload your scanner Excel report to view dashboard data.")
-    st.markdown("""
+    st.info("Upload your scanner Excel report to view dashboard data.");
     st.markdown("""
 <style>
 .block-container {
