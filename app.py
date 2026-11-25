@@ -212,6 +212,13 @@ with tab2:
         st.info("No stocks found for this filter in the current scan.")
     else:
         st.dataframe(intraday, use_container_width=True, hide_index=True)
+        st.download_button(
+            "⬇️ Download Intraday Results",
+            data=intraday.to_csv(index=False).encode("utf-8"),
+            file_name="Intraday_Results.csv",
+            mime="text/csv",
+            key="download_intraday_results"
+        )
 
 with tab3:
     st.subheader("📈 Swing Scanner")
@@ -249,6 +256,13 @@ with tab3:
         st.info("No stocks found for this filter in the current scan.")
     else:
         st.dataframe(swing, use_container_width=True, hide_index=True)
+        st.download_button(
+            "⬇️ Download Swing Results",
+            data=swing.to_csv(index=False).encode("utf-8"),
+            file_name="Swing_Results.csv",
+            mime="text/csv",
+            key="download_swing_results"
+        )
 
 with tab4:
     st.subheader("🎯 Trade Monitor")
