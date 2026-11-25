@@ -241,7 +241,22 @@ with tab3:
 with tab4:
     st.subheader("🎯 Trade Monitor")
 
-    st.caption("Review scanner trade levels and monitoring data.")
+    st.caption("Review trade levels from the uploaded report. Live TP/SL outcome tracking is not enabled yet.")
+
+    monitor_df = df.copy()
+
+    if signal_col:
+        monitor_signal_filter = st.selectbox(
+            "Filter monitored trades by Signal",
+            ["All", "BUY", "HOLD", "SELL"],
+            key="monitor_signal_filter"
+        )
+        if monitor_signal_filter != "All":
+            monitor_df = monitor_df[
+                monitor_df[signal_col].astype(str).str.upper().str.contains(
+                    monitor_signal_filter, na=False
+                )
+            ]
 
     monitor_cols = [
         c for c in [
@@ -250,14 +265,16 @@ with tab4:
         ] if c is not None
     ]
 
-    if monitor_cols:
+    if monitor_df.empty:
+        st.info("No trades found for this filter in the uploaded report.")
+    elif monitor_cols:
         st.dataframe(
-            df[monitor_cols],
+            monitor_df[monitor_cols],
             use_container_width=True,
             hide_index=True
         )
     else:
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(monitor_df, use_container_width=True)
 
 with tab5:
     st.subheader("📜 Historical Performance")
