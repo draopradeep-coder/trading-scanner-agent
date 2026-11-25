@@ -4,10 +4,11 @@ import zipfile
 import pandas as pd
 import requests
 
-UNIVERSE_BUILD = "BSE headers v3 Â· 2026-11-25"
+UNIVERSE_BUILD = "BSE beta v1 · 2026-11-25"
 
 NSE_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 BSE_API_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w"
+BSE_BETA_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData_new/w"
 BSE_MASTER_URL = "https://api.infinn.in/BSE_symbols.txt.zip"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123 Safari/537.36",
@@ -80,41 +81,44 @@ def _parse_bse_api_payload(payload):
     out = out[out["symbol"].ne("") & out["symbol"].ne("NAN")]
     return out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
 
+def _fetch_bse_beta():
+    response = requests.get(
+        BSE_BETA_URL, headers=BSE_HEADERS,
+        params={"Group": "", "Scripcode": "", "segment": "Equity", "status": "Active", "scripName": ""},
+        timeout=30,
+    )
+    response.raise_for_status()
+    data = _parse_bse_api_payload(response.json())
+    if len(data) < 1000:
+        raise ValueError(f"Beta endpoint returned only {len(data)} rows; expected a fuller equity list.")
+    data.attrs["source_warning"] = f"BSE loaded from new/Beta API ({len(data)} records)."
+    return data
 
 def _fetch_bse_master_fallback():
     """Load BSE cash-equity scrip codes from public daily instrument-master mirrors."""
-    mirrors = [
-        BSE_MASTER_URL,
-        "https://api.shoonya.com/BSE_symbols.txt.zip",
-    ]
+    mirrors = [BSE_MASTER_URL, "https://api.shoonya.com/BSE_symbols.txt.zip"]
     failures = []
     for url in mirrors:
         try:
             response = requests.get(url, headers={"User-Agent": HEADERS["User-Agent"], "Accept": "application/octet-stream,*/*", "Referer": "https://www.bseindia.com/"}, timeout=45)
             response.raise_for_status()
             with zipfile.ZipFile(BytesIO(response.content)) as archive:
-                csv_names = [name for name in archive.namelist()
-                             if name.lower().endswith((".csv", ".txt"))]
+                csv_names = [name for name in archive.namelist() if name.lower().endswith((".csv", ".txt"))]
                 if not csv_names:
                     raise ValueError("archive contains no CSV/TXT master file")
                 with archive.open(csv_names[0]) as master_file:
                     df = pd.read_csv(master_file, dtype=str)
-            # Public masters can vary in column case; normalize names only.
             df.columns = [str(column).strip() for column in df.columns]
             required = {"Token", "Symbol", "Instrument"}
             if not required.issubset(df.columns):
                 raise ValueError("unexpected master schema: " + ", ".join(df.columns))
             token = pd.to_numeric(df["Token"], errors="coerce")
             instrument = df["Instrument"].fillna("").astype(str).str.strip().str.upper()
-            # BSE cash scrip codes occupy 500000-599999. Exclude F/G groups.
             equity = df[token.between(500000, 599999) & ~instrument.isin(["F", "G"])].copy()
             equity["Token"] = token.loc[equity.index].astype("int64").astype(str)
             out = pd.DataFrame({
-                "symbol": equity["Token"].str.strip(),
-                "name": equity["Symbol"].fillna("").astype(str).str.strip(),
-                "isin": "",
-                "exchange": "BSE",
-                "series": equity["Instrument"].fillna("").astype(str).str.strip(),
+                "symbol": equity["Token"].str.strip(), "name": equity["Symbol"].fillna("").astype(str).str.strip(),
+                "isin": "", "exchange": "BSE", "series": equity["Instrument"].fillna("").astype(str).str.strip(),
             })
             out = out[out["symbol"].ne("") & out["name"].ne("")]
             out = out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
@@ -127,31 +131,26 @@ def _fetch_bse_master_fallback():
     raise RuntimeError("All public BSE master mirrors failed: " + " | ".join(failures))
 
 def fetch_bse_universe():
-    """Prefer the daily BSE cash-equity instrument master; use BSE API only as backup."""
-    try:
-        # Streamlit Cloud may receive 403 responses from BSE. The instrument
-        # master is the primary source so normal scans do not depend on that API.
-        return _fetch_bse_master_fallback()
-    except Exception as fallback_error:
+    """Prefer BSE beta API, then public masters, then legacy API."""
+    failures = []
+    for loader in (_fetch_bse_beta, _fetch_bse_master_fallback):
         try:
-            response = requests.get(
-                BSE_API_URL,
-                headers=BSE_HEADERS,
-                params={"Group": "", "Scripcode": "", "industry": "", "segment": "Equity", "status": "Active"},
-                timeout=30,
-            )
-            response.raise_for_status()
-            api_data = _parse_bse_api_payload(response.json())
-            api_data.attrs["source_warning"] = (
-                "BSE instrument-master fallback unavailable (" + str(fallback_error)[:120] +
-                "); loaded " + str(len(api_data)) + " BSE equity scrips from the BSE API backup."
-            )
-            return api_data
-        except Exception as api_error:
-            raise RuntimeError(
-                "BSE instrument-master fallback failed: " + str(fallback_error)[:160] +
-                "; BSE API backup also failed: " + str(api_error)[:160]
-            ) from api_error
+            return loader()
+        except Exception as exc:
+            failures.append(f"{loader.__name__}: {str(exc)[:220]}")
+    try:
+        response = requests.get(
+            BSE_API_URL, headers=BSE_HEADERS,
+            params={"Group": "", "Scripcode": "", "industry": "", "segment": "Equity", "status": "Active"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        data = _parse_bse_api_payload(response.json())
+        data.attrs["source_warning"] = "BSE beta and mirrors unavailable; loaded from legacy API."
+        return data
+    except Exception as exc:
+        failures.append(f"legacy API: {str(exc)[:220]}")
+        raise RuntimeError("All BSE sources failed: " + " | ".join(failures)) from exc
 
 def load_full_universe():
     """Load both exchanges; raises if both sources fail, tolerates one source failure."""
