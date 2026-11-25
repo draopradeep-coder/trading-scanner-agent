@@ -188,6 +188,13 @@ with tab1:
                 use_container_width=True,
                 hide_index=True
             )
+            st.download_button(
+                "⬇️ Download Overview Results",
+                data=overview_df.to_csv(index=False).encode("utf-8"),
+                file_name="Overview_Results.csv",
+                mime="text/csv",
+                key="download_overview_results"
+            )
     else:
         st.warning("Stock name column was not detected.")
         st.dataframe(df, use_container_width=True)
