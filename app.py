@@ -166,12 +166,28 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 with tab1:
     st.subheader("Scanner Overview")
 
+    overview_df = df.copy()
     if stock_col:
-        st.dataframe(
-            df,
-            use_container_width=True,
-            hide_index=True
+        overview_search = st.text_input(
+            "🔎 Search All Stocks",
+            placeholder="Enter a stock name or symbol",
+            key="overview_stock_search"
         )
+        if overview_search:
+            overview_df = overview_df[
+                overview_df[stock_col].astype(str).str.contains(
+                    overview_search, case=False, na=False
+                )
+            ]
+        st.caption(f"Showing {len(overview_df)} of {total_stocks} stocks.")
+        if overview_df.empty:
+            st.info("No stocks match your search in the current scan.")
+        else:
+            st.dataframe(
+                overview_df,
+                use_container_width=True,
+                hide_index=True
+            )
     else:
         st.warning("Stock name column was not detected.")
         st.dataframe(df, use_container_width=True)
