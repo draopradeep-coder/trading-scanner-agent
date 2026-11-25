@@ -22,17 +22,23 @@ if source_errors:
         st.caption(str(err))
 
 listing_count = len(universe)
-# Prefer NSE rows when the same ISIN is listed on both exchanges; use symbol fallback where ISIN is absent.
+# Deduplicate only on a real ISIN. If ISIN is missing, keep exchange+symbol as the key
+# so unrelated rows with blank/NaN ISIN values are never collapsed together.
 clean = universe.copy()
-clean["_isin_key"] = clean.get("isin", pd.Series("", index=clean.index)).astype(str).str.strip().str.upper()
-clean["_symbol_key"] = clean["symbol"].astype(str).str.strip().str.upper()
-clean["_key"] = clean["_isin_key"].where(clean["_isin_key"].ne(""), clean["_symbol_key"])
-clean["_exchange_rank"] = clean["exchange"].astype(str).str.upper().eq("NSE").map({True: 0, False: 1})
-clean = clean.sort_values("_exchange_rank").drop_duplicates("_key", keep="first").drop(columns=["_isin_key", "_symbol_key", "_key", "_exchange_rank"])
+if "isin" in clean.columns:
+    isin_values = clean["isin"].fillna("").astype(str).str.strip().str.upper()
+    isin_values = isin_values.mask(isin_values.isin(["", "NAN", "NONE", "NULL"]))
+else:
+    isin_values = pd.Series(pd.NA, index=clean.index, dtype="string")
+exchange_values = clean["exchange"].fillna("").astype(str).str.strip().str.upper()
+symbol_values = clean["symbol"].fillna("").astype(str).str.strip().str.upper()
+clean["_dedupe_key"] = isin_values.where(isin_values.notna(), exchange_values + ":" + symbol_values)
+clean["_exchange_rank"] = exchange_values.eq("NSE").map({True: 0, False: 1})
+clean = clean.sort_values("_exchange_rank").drop_duplicates("_dedupe_key", keep="first").drop(columns=["_dedupe_key", "_exchange_rank"])
 universe = clean.reset_index(drop=True)
 unique_count = len(universe)
 st.metric("Listings loaded", f"{listing_count:,}")
-st.metric("Unique stocks for breadth", f"{unique_count:,}", f"{listing_count-unique_count:,} duplicates/alternate listings removed")
+st.metric("Unique stocks for breadth", f"{unique_count:,}", f"{listing_count-unique_count:,} confirmed duplicate ISIN listings removed")
 
 CHUNK_SIZE = 120
 if "breadth_state" not in st.session_state or st.session_state.breadth_state.get("total") != unique_count:
