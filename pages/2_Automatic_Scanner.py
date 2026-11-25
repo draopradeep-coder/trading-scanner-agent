@@ -85,6 +85,25 @@ if candidates is not None and not candidates.empty:
     st.metric("Candidates shown",len(view))
     columns=["symbol","exchange","tier","score","price","entry","stop_loss","target1","target2","target3","risk_per_share","suggested_qty","capital_required","actual_risk","profit_T1","profit_T2","profit_T3","rsi14","volume_ratio"]
     st.dataframe(view[[x for x in columns if x in view.columns]],use_container_width=True,hide_index=True)
+
+    st.subheader("🧠 Why was this stock selected?")
+    if not view.empty:
+        choice=st.selectbox("Choose a candidate to explain",view["symbol"].astype(str).tolist())
+        row=view[view["symbol"].astype(str)==choice].iloc[0]
+        with st.expander(f"Setup breakdown: {choice}",expanded=True):
+            st.markdown(f"**Score:** {int(row['score'])}/100 · **Tier:** {row['tier']}")
+            checks=[
+                ("Price above SMA20",bool(row.get("trend_up",False)), "Price above its 20-day average supports short-term trend."),
+                ("SMA20 above SMA50",bool(row.get("trend_up",False)), "Trend alignment is a medium-term momentum confirmation."),
+                ("20-day breakout",bool(row.get("breakout20",False)), "Price is above the previous 20-session high."),
+                ("Relative volume ≥ 1.5",float(row.get("volume_ratio",0))>=1.5, f"Current daily volume is {float(row.get('volume_ratio',0)):.2f}× the 20-day average."),
+                ("RSI in 50–70 zone",50<=float(row.get("rsi14",0))<=70, f"RSI(14): {float(row.get('rsi14',0)):.1f}."),
+            ]
+            for label,passed,detail in checks:
+                st.write(("✅ " if passed else "⚪ "),label,"—",detail)
+            st.write(f"**ATR(14):** ₹{float(row.get('atr14',row.get('atr',0))):.2f} where available")
+            st.write(f"**Planned risk per share:** ₹{float(row['risk_per_share']):.2f} · **Quantity:** {int(row['suggested_qty'])}")
+            st.caption("These checks describe the scanner's indicator confluence; they are not a forecast or guarantee. Trend fields and indicators reflect the latest available daily data.")
     st.download_button("⬇️ Download position plans CSV",view.to_csv(index=False).encode("utf-8"),"TraderPrp_Position_Plans.csv","text/csv",use_container_width=True)
 else: st.info("No qualifying candidates yet. Scan additional batches.")
 if progress and progress.get("records"):
