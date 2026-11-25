@@ -182,7 +182,7 @@ quality_col3.metric("Duplicate Stock Rows", duplicate_stocks if stock_col else "
 
 if signal_col:
     normalized_signals = df[signal_col].fillna("").astype(str).str.strip().str.upper()
-    valid_signal_mask = normalized_signals.str.contains(r"BUY|HOLD|SELL", regex=True, na=False)
+    valid_signal_mask = normalized_signals.str.contains(r"BUY|HOLD|SELL|AVOID|WAIT", regex=True, na=False)
     unexpected_signals = sorted(normalized_signals[
         normalized_signals.ne("") & ~valid_signal_mask
     ].unique().tolist())
@@ -243,7 +243,7 @@ for row_index, (_, row) in enumerate(df.iterrows(), start=1):
                 "Column": str(signal_col),
                 "Value": ""
             })
-        elif not any(label in signal_value.upper() for label in ["BUY", "HOLD", "SELL"]):
+        elif not any(label in signal_value.upper() for label in ["BUY", "HOLD", "SELL", "AVOID", "WAIT"]):
             quality_issues.append({
                 "Dashboard Row": row_index,
                 "Stock": stock_name,
@@ -410,7 +410,7 @@ with tab1:
         if signal_col:
             overview_signal_filter = st.selectbox(
                 "Filter Overview by Signal",
-                ["All", "BUY", "HOLD", "SELL"],
+                ["All", "BUY", "HOLD", "SELL", "AVOID", "WAIT"],
                 key="overview_signal_filter"
             )
             if overview_signal_filter != "All":
@@ -510,7 +510,7 @@ with tab2:
     if signal_col:
         signal_filter = st.selectbox(
             "Filter by Signal",
-            ["All", "BUY", "HOLD", "SELL"]
+            ["All", "BUY", "HOLD", "SELL", "AVOID", "WAIT"]
         )
 
         if signal_filter != "All":
@@ -556,7 +556,7 @@ with tab3:
     if signal_col:
         swing_signal_filter = st.selectbox(
             "Filter Swing by Signal",
-            ["All", "BUY", "HOLD", "SELL"],
+            ["All", "BUY", "HOLD", "SELL", "AVOID", "WAIT"],
             key="swing_signal_filter"
         )
         if swing_signal_filter != "All":
@@ -590,7 +590,7 @@ with tab4:
     if signal_col:
         monitor_signal_filter = st.selectbox(
             "Filter monitored trades by Signal",
-            ["All", "BUY", "HOLD", "SELL"],
+            ["All", "BUY", "HOLD", "SELL", "AVOID", "WAIT"],
             key="monitor_signal_filter"
         )
         if monitor_signal_filter != "All":
