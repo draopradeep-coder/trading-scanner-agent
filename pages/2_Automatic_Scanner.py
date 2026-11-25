@@ -5,7 +5,7 @@ from scanner_engine import scan_batch, load_progress, clear_progress
 
 st.set_page_config(page_title="TraderPrp | Automatic Scanner",page_icon="🔎",layout="wide")
 st.title("🔎 Automatic Stock Scanner")
-st.caption("Daily-bar momentum and swing candidates across the loaded NSE/BSE universe. Not intraday live signals.")
+st.caption("Daily-bar momentum and swing candidates across the loaded NSE/BSE cash-equity universe. Not intraday live signals.")
 
 @st.cache_data(ttl=3600,show_spinner=False)
 def get_universe():
@@ -21,10 +21,9 @@ if source_errors:
     for error in source_errors: st.caption(str(error))
 total=len(universe)
 st.metric("Universe loaded",total)
-st.caption("Universe size is not the same as completed scan coverage. Progress is stored locally while this app instance remains available.")
+st.caption("Universe size is not completed scan coverage. Progress is stored locally while this app instance remains available.")
 progress=load_progress()
-if progress and progress.get("records"):
-    st.info(f"Saved progress: {len(progress['records'])} stock records. Resume, retry failed stocks, or start fresh.")
+if progress and progress.get("records"): st.info(f"Saved progress: {len(progress['records'])} records. Resume, retry failed stocks, or start fresh.")
 c1,c2,c3=st.columns(3)
 with c1: resume=st.button("▶️ Resume / Scan Next Batch",type="primary",use_container_width=True)
 with c2: retry=st.button("🔁 Retry Failed Stocks",use_container_width=True)
@@ -39,9 +38,7 @@ if resume or retry:
             st.session_state["scan_candidates"]=candidates
             st.session_state["scan_summary"]=summary
             st.session_state["scan_status"]=status
-        except Exception as e:
-            st.error(f"Scan failed: {e}")
-summary=st.session_state.get("scan_summary")
+        except Exception as e: st.error(f"Scan failed: {e}")
 progress=load_progress()
 if progress:
     records=progress.get("records",{})
@@ -63,20 +60,37 @@ if candidates is not None and not candidates.empty:
         candidates["tier"]=candidates["score"].apply(lambda x:"A+" if x>=85 else "A" if x>=70 else "B" if x>=55 else "C")
     candidates=candidates.sort_values(["score","volume_ratio"],ascending=False).reset_index(drop=True)
     st.subheader("🏆 Ranked candidates")
-    st.caption("Tier labels summarize indicator confluence—not win probability or financial advice.")
-    tier_filter=st.multiselect("Show tiers",["A+","A","B","C"],default=["A+","A","B","C"])
-    exchange=st.selectbox("Exchange filter",["All","NSE","BSE"])
-    view=candidates[candidates["tier"].isin(tier_filter)]
+    st.caption("Tier labels reflect indicator confluence, not probability.")
+    f1,f2=st.columns(2)
+    tier_filter=f1.multiselect("Show tiers",["A+","A","B","C"],default=["A+","A","B","C"])
+    exchange=f2.selectbox("Exchange filter",["All","NSE","BSE"])
+    view=candidates[candidates["tier"].isin(tier_filter)].copy()
     if exchange!="All": view=view[view["exchange"]==exchange]
+    st.subheader("💰 Position sizing & risk planner")
+    capital=st.number_input("Total trading capital available (₹)",min_value=1000,value=100000,step=5000)
+    risk_pct=st.slider("Risk budget per trade (% of capital)",min_value=0.25,max_value=3.0,value=1.0,step=0.25)
+    risk_budget=capital*risk_pct/100
+    st.metric("Risk budget per trade",f"₹{risk_budget:,.2f}")
+    view["risk_per_share"]=(view["entry"]-view["stop_loss"]).clip(lower=0)
+    view["risk_budget"]=risk_budget
+    view["risk_qty"]=view.apply(lambda r:int(risk_budget/r["risk_per_share"]) if r["risk_per_share"]>0 else 0,axis=1)
+    view["capital_qty"]=view.apply(lambda r:int(capital/r["entry"]) if r["entry"]>0 else 0,axis=1)
+    view["suggested_qty"]=view[["risk_qty","capital_qty"]].min(axis=1).astype(int)
+    view["capital_required"]=view["suggested_qty"]*view["entry"]
+    view["actual_risk"]=view["suggested_qty"]*view["risk_per_share"]
+    view["profit_T1"]=view["suggested_qty"]*(view["target1"]-view["entry"])
+    view["profit_T2"]=view["suggested_qty"]*(view["target2"]-view["entry"])
+    view["profit_T3"]=view["suggested_qty"]*(view["target3"]-view["entry"])
+    st.caption("Share quantity is capped by both the selected risk budget and available capital (single-stock illustrative sizing).")
     st.metric("Candidates shown",len(view))
-    st.dataframe(view,use_container_width=True,hide_index=True)
-    st.download_button("⬇️ Download candidates CSV",view.to_csv(index=False).encode("utf-8"),"TraderPrp_Candidates.csv","text/csv",use_container_width=True)
-else:
-    st.info("No qualifying candidates yet. Scan additional batches.")
+    columns=["symbol","exchange","tier","score","price","entry","stop_loss","target1","target2","target3","risk_per_share","suggested_qty","capital_required","actual_risk","profit_T1","profit_T2","profit_T3","rsi14","volume_ratio"]
+    st.dataframe(view[[x for x in columns if x in view.columns]],use_container_width=True,hide_index=True)
+    st.download_button("⬇️ Download position plans CSV",view.to_csv(index=False).encode("utf-8"),"TraderPrp_Position_Plans.csv","text/csv",use_container_width=True)
+else: st.info("No qualifying candidates yet. Scan additional batches.")
 if progress and progress.get("records"):
     status_df=pd.DataFrame([{k:v for k,v in rec.items() if k!="result"} for rec in progress["records"].values()])
     if not status_df.empty:
         with st.expander("Stock scan status"):
             st.dataframe(status_df,use_container_width=True,hide_index=True)
             st.download_button("Download scan status CSV",status_df.to_csv(index=False).encode("utf-8"),"TraderPrp_Scan_Status.csv","text/csv")
-st.caption("Daily candles are used for swing/momentum screening, not live intraday signals. Scores and tiers are screening metrics, not probabilities or financial advice.")
+st.caption("Daily candles for swing/momentum screening, not live intraday signals. Risk estimates exclude brokerage, slippage, taxes and gap risk. Scores are not probabilities or financial advice.")
