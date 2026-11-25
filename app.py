@@ -191,6 +191,15 @@ if signal_col:
     ]))
     if unexpected_signals:
         st.warning("Unrecognized signal labels found: " + ", ".join(unexpected_signals[:10]))
+        with st.expander("🔍 View unrecognized signal counts", expanded=False):
+            unexpected_counts = (
+                normalized_signals[normalized_signals.ne("") & ~valid_signal_mask]
+                .value_counts()
+                .rename_axis("Signal Label")
+                .reset_index(name="Rows")
+            )
+            st.dataframe(unexpected_counts, use_container_width=True, hide_index=True)
+            st.caption("These labels are shown for review only. The dashboard does not assume what they mean or convert them into BUY, HOLD, SELL, AVOID or WAIT.")
 
 trade_level_fields = [
     ("Current Price", price_col),
