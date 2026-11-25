@@ -108,6 +108,43 @@ stop_col = find_column(df, ["stop_loss", "stop loss", "sl"])
 target_col = find_column(df, ["target", "target_1", "target1", "target price", "tp1"])
 type_col = find_column(df, ["trade_type", "trade type", "type", "category", "strategy"])
 
+# Manual fallback for unrecognized Excel headers
+missing_mappings = [
+    ("Stock Name / Symbol", "stock_col", stock_col),
+    ("Signal", "signal_col", signal_col),
+    ("Current Price", "price_col", price_col),
+    ("Entry Price", "entry_col", entry_col),
+    ("Stop Loss", "stop_col", stop_col),
+    ("Target", "target_col", target_col),
+    ("Trade Type", "type_col", type_col),
+]
+if any(column is None for _, _, column in missing_mappings):
+    with st.expander("🛠️ Manually Map Missing Columns", expanded=False):
+        st.caption("If an Excel header was not recognized, select the correct column below. Your original Excel file is not changed.")
+        available_columns = ["(leave unmapped)"] + list(df.columns)
+        for field_label, field_key, detected_column in missing_mappings:
+            if detected_column is None:
+                selected_column = st.selectbox(
+                    f"Choose Excel column for {field_label}",
+                    available_columns,
+                    key=f"manual_map_{field_key}"
+                )
+                if selected_column != "(leave unmapped)":
+                    if field_key == "stock_col":
+                        stock_col = selected_column
+                    elif field_key == "signal_col":
+                        signal_col = selected_column
+                    elif field_key == "price_col":
+                        price_col = selected_column
+                    elif field_key == "entry_col":
+                        entry_col = selected_column
+                    elif field_key == "stop_col":
+                        stop_col = selected_column
+                    elif field_key == "target_col":
+                        target_col = selected_column
+                    elif field_key == "type_col":
+                        type_col = selected_column
+
 # Detected column guide
 with st.expander("🔎 View Detected Excel Columns", expanded=False):
     detected_columns = pd.DataFrame([
@@ -123,7 +160,7 @@ with st.expander("🔎 View Detected Excel Columns", expanded=False):
         ]
     ])
     st.dataframe(detected_columns, use_container_width=True, hide_index=True)
-    st.caption("Header matching ignores spaces, underscores, hyphens and capitalization. Common alternatives include Stock Name, Trading Symbol, Trade Signal, Buy/Sell, Last Traded Price and Target Price. If a field is not detected, rename its Excel column to a recognized header and upload again.")
+    st.caption("Header matching ignores spaces, underscores, hyphens and capitalization. Common alternatives include Stock Name, Trading Symbol, Trade Signal, Buy/Sell, Last Traded Price and Target Price. If a field is missing, use the Manually Map Missing Columns section above or rename the Excel header.")
 
 # Data quality checks
 st.subheader("🧹 Data Quality Check")
