@@ -273,8 +273,22 @@ with tab4:
             use_container_width=True,
             hide_index=True
         )
+        st.download_button(
+            "⬇️ Download Trade Monitor",
+            data=monitor_df[monitor_cols].to_csv(index=False).encode("utf-8"),
+            file_name="Trade_Monitor.csv",
+            mime="text/csv",
+            key="download_trade_monitor"
+        )
     else:
         st.dataframe(monitor_df, use_container_width=True)
+        st.download_button(
+            "⬇️ Download Trade Monitor",
+            data=monitor_df.to_csv(index=False).encode("utf-8"),
+            file_name="Trade_Monitor.csv",
+            mime="text/csv",
+            key="download_trade_monitor"
+        )
 
 with tab5:
     st.subheader("📜 Historical Performance")
