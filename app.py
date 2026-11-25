@@ -322,11 +322,11 @@ wait_count = 0
 
 if signal_col:
     signals = df[signal_col].astype(str).str.upper().str.strip()
-    buy_count = signals.str.contains(r"\\bBUY\\b", regex=True, na=False).sum()
-    hold_count = signals.str.contains(r"\\bHOLD\\b", regex=True, na=False).sum()
-    sell_count = signals.str.contains(r"\\bSELL\\b", regex=True, na=False).sum()
-    avoid_count = signals.str.contains(r"\\bAVOID\\b", regex=True, na=False).sum()
-    wait_count = signals.str.contains(r"\\bWAIT\\b", regex=True, na=False).sum()
+    buy_count = signals.str.contains(r"\bBUY\b", regex=True, na=False).sum()
+    hold_count = signals.str.contains(r"\bHOLD\b", regex=True, na=False).sum()
+    sell_count = signals.str.contains(r"\bSELL\b", regex=True, na=False).sum()
+    avoid_count = signals.str.contains(r"\bAVOID\b", regex=True, na=False).sum()
+    wait_count = signals.str.contains(r"\bWAIT\b", regex=True, na=False).sum()
 
 other_count = max(0, total_stocks - buy_count - hold_count - sell_count - avoid_count - wait_count)
 scan_denominator = max(total_stocks, 1)
