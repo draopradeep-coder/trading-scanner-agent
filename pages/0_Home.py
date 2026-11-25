@@ -1,6 +1,10 @@
 import streamlit as st
 from market_regime import detect_market_regime
 
+@st.cache_data(ttl=900, show_spinner=False)
+def load_regime():
+    return detect_market_regime()
+
 st.markdown("""<style>.block-container{padding-top:1.4rem}.hero{padding:1.5rem;border-radius:18px;background:linear-gradient(120deg,#101827,#263b58);color:white}</style>""",unsafe_allow_html=True)
 st.markdown('<div class="hero"><h1>📈 TraderPrp Trading Scanner</h1><p>Indian cash-equity research • Daily momentum & swing setups</p><p>Market context first. Stock selection second. Risk awareness always.</p></div>',unsafe_allow_html=True)
 st.subheader("🌡️ Market overview")
