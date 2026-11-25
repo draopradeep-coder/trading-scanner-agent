@@ -10,7 +10,7 @@ if page==pages["Home"][0]:
  st.markdown("""<style>.block-container{padding-top:1.4rem}.hero{padding:1.5rem;border-radius:18px;background:linear-gradient(120deg,#101827,#263b58);color:white}</style>""",unsafe_allow_html=True)
  st.markdown('<div class="hero"><h1>📈 TraderPrp Trading Scanner</h1><p>Indian cash-equity research • Daily momentum & swing setups</p><p>Market context first. Stock selection second. Risk awareness always.</p></div>',unsafe_allow_html=True)
  st.subheader("🌡️ Market overview")
- if st.button("🔄 Refresh market overview", key="home_refresh_market_overview"): load_regime.clear()
+ if st.button("🔄 Refresh market overview", key="home_market_overview_refresh_v2"): load_regime.clear()
  with st.spinner("Loading benchmark context..."): result=load_regime()
  regime=result.get("regime","UNKNOWN")
  st.metric("Market Regime • NIFTY 50 + Bank Nifty confirmation",regime)
