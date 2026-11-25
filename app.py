@@ -159,7 +159,20 @@ with tab2:
                 )
             ]
 
-    st.dataframe(intraday, use_container_width=True, hide_index=True)
+    if signal_col:
+    signal_filter = st.selectbox(
+        "Filter by Signal",
+        ["All", "BUY", "HOLD", "SELL"]
+    )
+
+    if signal_filter != "All":
+        intraday = intraday[
+            intraday[signal_col].astype(str).str.upper().str.contains(
+                signal_filter, na=False
+            )
+        ]
+
+st.dataframe(intraday, use_container_width=True, hide_index=True)
 
 with tab3:
     st.subheader("📈 Swing Scanner")
