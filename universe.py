@@ -1,10 +1,12 @@
 """Automatic NSE + BSE listed-equity universe loader for TraderPrp."""
 from io import BytesIO
+import zipfile
 import pandas as pd
 import requests
 
 NSE_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 BSE_API_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w"
+BSE_MASTER_URL = "https://api.infinn.in/BSE_symbols.txt.zip"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123 Safari/537.36",
     "Accept": "text/csv,application/octet-stream,*/*",
@@ -41,10 +43,7 @@ def fetch_nse_universe():
     out = out[out["symbol"].ne("") & out["symbol"].ne("NAN")]
     return out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
 
-def fetch_bse_universe():
-    response = requests.get(BSE_API_URL, headers=BSE_HEADERS, params={"Group": "", "Scripcode": "", "industry": "", "segment": "Equity", "status": "Active"}, timeout=30)
-    response.raise_for_status()
-    payload = response.json()
+def _parse_bse_api_payload(payload):
     if isinstance(payload, dict):
         payload = payload.get("Table", payload.get("data", payload.get("Data", [])))
     if not isinstance(payload, list) or not payload:
@@ -66,12 +65,74 @@ def fetch_bse_universe():
     out = out[out["symbol"].ne("") & out["symbol"].ne("NAN")]
     return out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
 
+
+def _fetch_bse_master_fallback():
+    """Load BSE cash-equity scrip codes from the daily instrument-master mirror."""
+    response = requests.get(BSE_MASTER_URL, headers=HEADERS, timeout=35)
+    response.raise_for_status()
+    with zipfile.ZipFile(BytesIO(response.content)) as archive:
+        csv_names = [name for name in archive.namelist() if name.lower().endswith((".csv", ".txt"))]
+        if not csv_names:
+            raise ValueError("BSE fallback archive contains no CSV/TXT master file.")
+        df = pd.read_csv(archive.open(csv_names[0]), dtype=str)
+    required = {"Token", "Symbol", "Instrument"}
+    if not required.issubset(df.columns):
+        raise ValueError("BSE fallback master has an unexpected schema.")
+    token = pd.to_numeric(df["Token"], errors="coerce")
+    instrument = df["Instrument"].fillna("").astype(str).str.strip().str.upper()
+    # BSE equity scrip codes are in the 500000-599999 range. Exclude the
+    # F-coded debt instruments present in the same consolidated master.
+    equity = df[token.between(500000, 599999) & instrument.ne("F")].copy()
+    equity["Token"] = token.loc[equity.index].astype("int64").astype(str)
+    out = pd.DataFrame({
+        "symbol": equity["Token"].str.strip(),
+        "name": equity["Symbol"].fillna("").astype(str).str.strip(),
+        "isin": "",
+        "exchange": "BSE",
+        "series": equity["Instrument"].fillna("").astype(str).str.strip(),
+    })
+    out = out[out["symbol"].ne("") & out["name"].ne("")]
+    out = out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
+    if len(out) < 1000:
+        raise ValueError(f"BSE fallback master returned only {len(out)} eligible equity scrips.")
+    return out
+
+
+def fetch_bse_universe():
+    """Prefer BSE's API; fall back to a daily BSE cash-equity instrument master."""
+    try:
+        response = requests.get(
+            BSE_API_URL,
+            headers=BSE_HEADERS,
+            params={"Group": "", "Scripcode": "", "industry": "", "segment": "Equity", "status": "Active"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return _parse_bse_api_payload(response.json())
+    except Exception as api_error:
+        try:
+            fallback = _fetch_bse_master_fallback()
+            fallback.attrs["source_warning"] = (
+                "BSE primary API unavailable (" + str(api_error)[:120] +
+                "); loaded " + str(len(fallback)) + " BSE equity scrips from the daily instrument-master fallback."
+            )
+            return fallback
+        except Exception as fallback_error:
+            raise RuntimeError(
+                "BSE API failed: " + str(api_error)[:160] +
+                "; BSE fallback also failed: " + str(fallback_error)[:160]
+            ) from fallback_error
+
 def load_full_universe():
     """Load both exchanges; raises if both sources fail, tolerates one source failure."""
     results, errors = [], []
     for loader in (fetch_nse_universe, fetch_bse_universe):
         try:
-            results.append(loader())
+            loaded = loader()
+            results.append(loaded)
+            source_warning = loaded.attrs.get("source_warning")
+            if source_warning:
+                errors.append(source_warning)
         except Exception as exc:
             errors.append(f"{loader.__name__}: {exc}")
     if not results:
