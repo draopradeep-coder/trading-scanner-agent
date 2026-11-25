@@ -23,19 +23,12 @@ with st.spinner("Fetching exchange listings. This may take a moment..."):
         st.info("The exchange sources may temporarily block or change their download format. Please retry later.")
         st.stop()
 
-report = validate_universe(universe)
+valid, issues = validate_universe(universe)
 
 if source_errors:
     st.warning("Some exchange sources reported errors; results may be partial.")
     for error in source_errors:
         st.caption(str(error))
-
-if isinstance(report, dict):
-    valid = report.get("valid", report.get("is_valid", False))
-    issues = report.get("issues", report.get("errors", []))
-else:
-    valid = bool(report)
-    issues = []
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Total Listing Rows", len(universe))
@@ -45,7 +38,7 @@ c3.metric("BSE Rows", int(universe["exchange"].astype(str).str.upper().eq("BSE")
 if valid:
     st.success("Validation passed")
 else:
-    st.warning("Validation returned issues or did not confirm success.")
+    st.warning("Validation returned issues")
 if issues:
     for issue in issues:
         st.write("•", issue)
