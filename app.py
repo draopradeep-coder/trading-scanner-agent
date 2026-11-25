@@ -196,7 +196,10 @@ with tab3:
                 )
             ]
 
-    st.dataframe(swing, use_container_width=True, hide_index=True)
+    if swing.empty:
+        st.info("No stocks found for this filter in the current scan.")
+    else:
+        st.dataframe(swing, use_container_width=True, hide_index=True)
 
 with tab4:
     st.subheader("🎯 Trade Monitor")
