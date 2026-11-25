@@ -98,6 +98,20 @@ duplicate_stocks = int(df[stock_col].astype(str).str.strip().duplicated().sum())
 quality_col1.metric("Missing Stock Names", missing_stock_names)
 quality_col2.metric("Missing Signals", missing_signals if signal_col else "N/A")
 quality_col3.metric("Duplicate Stock Rows", duplicate_stocks if stock_col else "N/A")
+
+trade_level_fields = [
+    ("Current Price", price_col),
+    ("Entry", entry_col),
+    ("Stop Loss", stop_col),
+    ("Target", target_col),
+]
+available_trade_fields = [(label, col) for label, col in trade_level_fields if col is not None]
+if available_trade_fields:
+    st.caption("Missing values in detected trade-level columns:")
+    level_cols = st.columns(len(available_trade_fields))
+    for level_col, (label, column) in zip(level_cols, available_trade_fields):
+        level_col.metric(f"Missing {label}", int(df[column].isna().sum()))
+
 if not stock_col:
     st.warning("Stock name/symbol column was not detected. Please check your Excel headings.")
 elif duplicate_stocks:
