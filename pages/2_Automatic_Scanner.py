@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from universe import load_full_universe
 from scanner_engine import scan_batch, load_progress, clear_progress
+from market_regime import detect_market_regime
 
 st.set_page_config(page_title="TraderPrp | Automatic Scanner",page_icon="🔎",layout="wide")
 st.title("🔎 Automatic Stock Scanner")
@@ -11,8 +12,37 @@ st.caption("Daily-bar momentum and swing candidates across the loaded NSE/BSE ca
 def get_universe():
     return load_full_universe()
 
+@st.cache_data(ttl=1800,show_spinner=False)
+def get_regime():
+    return detect_market_regime()
+
 try:
-    universe,source_errors=get_universe()
+    regime=get_regime()
+    st.subheader("🌦️ Market Regime")
+    name=regime.get("regime","UNKNOWN")
+    if name=="BULLISH": st.success("Market Regime: BULLISH — scanner will show qualifying candidates.")
+    elif name=="BEARISH": st.error("Market Regime: BEARISH — new candidate recommendations are suppressed.")
+    elif name=="SIDEWAYS / MIXED": st.warning("Market Regime: SIDEWAYS / MIXED — only stronger A+/A tier candidates will be shown.")
+    else: st.info("Market regime unavailable — filtering will not be applied.")
+    detail=regime.get("details",{})
+    if detail:
+        cols=st.columns(len(detail))
+        for col,(idx,values) in zip(cols,detail.items()):
+            col.metric(idx,f"{values['price']:,.2f}",f"20d: {values['change20']*100:+.2f}%")
+            col.caption(f"SMA20 {values['sma20']:,.2f} · SMA50 {values['sma50']:,.2f}")
+    st.caption(regime.get("message",""))
+    if regime.get("issues"):
+        for issue in regime["issues"]: st.caption(issue)
+except Exception as e:
+    regime={"regime":"UNKNOWN","details":{},"issues":[str(e)]}
+    st.warning(f"Market regime detection failed: {e}")
+
+@st.cache_data(ttl=3600,show_spinner=False)
+def get_universe_data():
+    return load_full_universe()
+
+try:
+    universe,source_errors=get_universe_data()
 except Exception as e:
     st.error(f"Unable to load universe: {e}")
     st.stop()
@@ -66,6 +96,13 @@ if candidates is not None and not candidates.empty:
     exchange=f2.selectbox("Exchange filter",["All","NSE","BSE"])
     view=candidates[candidates["tier"].isin(tier_filter)].copy()
     if exchange!="All": view=view[view["exchange"]==exchange]
+    regime_name=regime.get("regime","UNKNOWN")
+    if regime_name=="BEARISH":
+        st.warning("Bearish market filter: candidate recommendations are hidden. You can still inspect scan progress.")
+        view=view.iloc[0:0]
+    elif regime_name=="SIDEWAYS / MIXED":
+        view=view[view["tier"].isin(["A+","A"])]
+        st.info("Sideways/mixed market: showing A+/A tier only.")
     st.subheader("💰 Position sizing & risk planner")
     capital=st.number_input("Total trading capital available (₹)",min_value=1000,value=100000,step=5000)
     risk_pct=st.slider("Risk budget per trade (% of capital)",min_value=0.25,max_value=3.0,value=1.0,step=0.25)
@@ -85,7 +122,6 @@ if candidates is not None and not candidates.empty:
     st.metric("Candidates shown",len(view))
     columns=["symbol","exchange","tier","score","price","entry","stop_loss","target1","target2","target3","risk_per_share","suggested_qty","capital_required","actual_risk","profit_T1","profit_T2","profit_T3","rsi14","volume_ratio"]
     st.dataframe(view[[x for x in columns if x in view.columns]],use_container_width=True,hide_index=True)
-
     st.subheader("🧠 Why was this stock selected?")
     if not view.empty:
         choice=st.selectbox("Choose a candidate to explain",view["symbol"].astype(str).tolist())
