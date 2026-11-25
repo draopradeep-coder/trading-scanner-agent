@@ -1,70 +1,83 @@
 import streamlit as st
 import pandas as pd
 from universe import load_full_universe
-from scanner_engine import scan_universe_with_status
+from scanner_engine import scan_batch, load_progress, clear_progress
 
-st.set_page_config(page_title="TraderPrp | Automatic Scanner", page_icon="🔎", layout="wide")
+st.set_page_config(page_title="TraderPrp | Automatic Scanner",page_icon="📈",layout="wide")
 st.title("🔎 Automatic Stock Scanner")
-st.caption("Daily-bar momentum and swing candidates across the loaded NSE/BSE universe. Not intraday live signals.")
+st.caption("Daily-bar momentum and swing candidates across NSE/BSE cash equities. Not intraday signals.")
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=3600,show_spinner=False)
 def get_universe():
     return load_full_universe()
 
 try:
-    universe, source_errors = get_universe()
+    universe,source_errors=get_universe()
 except Exception as e:
-    st.error(f"Unable to load stock universe: {e}")
+    st.error(f"Unable to load universe: {e}")
     st.stop()
-
 if source_errors:
-    st.warning("Some universe sources failed. Coverage may be partial; this is not a complete-market scan.")
-    for err in source_errors:
-        st.caption(err)
+    st.warning("Some universe sources failed; scan coverage may be partial.")
+    for err in source_errors: st.caption(str(err))
 
-total_rows = len(universe)
-st.metric("Loaded universe rows", total_rows)
-exchanges = universe["exchange"].astype(str).str.upper().value_counts() if "exchange" in universe.columns else pd.Series(dtype=int)
-cols = st.columns(2)
-cols[0].metric("NSE rows", int(exchanges.get("NSE", 0)))
-cols[1].metric("BSE rows", int(exchanges.get("BSE", 0)))
-st.info("Universe row count is not the same as the number of stocks successfully analyzed.")
+total=len(universe)
+st.metric("Universe loaded",total)
+st.caption("Loaded universe size is not the same as completed scan coverage. Scan progress is saved in a local progress file while this app instance remains available.")
 
-st.caption("Daily candles are used for swing/momentum screening. This is not intraday live data.")
-if st.button("🔎 Scan Loaded Stock Universe", type="primary", use_container_width=True):
-    with st.spinner(f"Analyzing {total_rows} listing rows… This may take several minutes."):
+progress=load_progress()
+if progress and progress.get("records"):
+    st.info(f"Saved scan progress detected: {len(progress['records'])} stocks recorded. Continue the scan or reset it.")
+c1,c2=st.columns(2)
+with c1:
+    resume=st.button("▶️ Resume / Scan Next Batch",type="primary",use_container_width=True)
+with c2:
+    fresh=st.button("🧹 Start Fresh Scan",use_container_width=True)
+if fresh:
+    clear_progress()
+    progress=None
+    st.success("Saved scan progress cleared. Press Resume / Scan Next Batch to start.")
+if resume or fresh:
+    with st.spinner("Scanning the next batch of daily stock data..."):
         try:
-            results, scan_summary = scan_universe_with_status(universe)
-            st.session_state["scanner_results"] = results
-            st.session_state["scanner_summary"] = scan_summary
-            st.session_state["scanner_scan_time"] = pd.Timestamp.now().strftime("%d %b %Y, %I:%M %p")
-            st.session_state["scanner_universe_count"] = total_rows
+            results,summary,status=scan_batch(universe,batch_size=40,retry_failed=bool(fresh))
+            st.session_state["scan_results"]=results
+            st.session_state["scan_summary"]=summary
+            st.session_state["scan_status"]=status
         except Exception as e:
-            st.error(f"Scan failed: {e}")
+            st.error(f"Scan batch failed: {e}")
 
-results = st.session_state.get("scanner_results")
-summary = st.session_state.get("scanner_summary")
-if results is not None and summary is not None:
-    st.success(f"Scan refreshed: {st.session_state.get('scanner_scan_time','')}")
-    st.caption(f"Attempted: {summary['requested']} | Successfully analyzed: {summary['analyzed']} | Failed: {summary['failed']} | Candidates: {summary['candidates']}")
-    c1,c2,c3,c4=st.columns(4)
-    c1.metric("Attempted",summary["requested"])
-    c2.metric("Analyzed",summary["analyzed"])
-    c3.metric("Failed",summary["failed"])
-    c4.metric("Candidates",summary["candidates"])
-    status_df=summary["status_rows"]
+summary=st.session_state.get("scan_summary")
+results=st.session_state.get("scan_results")
+status=st.session_state.get("scan_status")
+progress=load_progress()
+if progress:
+    recs=progress.get("records",{})
+    analyzed=sum(x.get("status")=="analyzed" for x in recs.values())
+    failed=sum(x.get("status")=="failed" for x in recs.values())
+    pending=max(0,total-len(recs))
+    candidates=pd.DataFrame([x.get("result") for x in recs.values() if x.get("status")=="analyzed" and x.get("candidate") and x.get("result")])
+    if not candidates.empty: candidates=candidates.sort_values(["score","volume_ratio"],ascending=False).reset_index(drop=True)
+    a,b,c,d=st.columns(4)
+    a.metric("Recorded",len(recs),f"of {total}")
+    b.metric("Analyzed",analyzed)
+    c.metric("Failed",failed)
+    d.metric("Remaining",pending)
+    st.progress(min(1.0,len(recs)/max(1,total)))
+    st.caption(f"Saved progress updated: {progress.get('updated','unknown')}. Remaining stocks can be scanned in batches of 40. Failed stocks are skipped during resume; reset to retry them.")
+    if not candidates.empty:
+        exch=st.selectbox("Exchange",["All","NSE","BSE"])
+        view=candidates.copy()
+        if exch!="All": view=view[view["exchange"]==exch]
+        st.metric("Candidates",len(view))
+        st.dataframe(view,use_container_width=True,hide_index=True)
+        st.download_button("⬇️ Download candidates CSV",view.to_csv(index=False).encode("utf-8"),"TraderPrp_Candidates.csv","text/csv",use_container_width=True)
+    else: st.warning("No qualifying candidates yet. Continue scanning more batches.")
+    status_df=pd.DataFrame([{k:v for k,v in rec.items() if k!="result"} for rec in recs.values()])
     if not status_df.empty:
-        with st.expander("📋 Scan status by stock", expanded=False):
+        with st.expander("Stock scan status"):
             st.dataframe(status_df,use_container_width=True,hide_index=True)
             st.download_button("Download scan status CSV",status_df.to_csv(index=False).encode("utf-8"),"TraderPrp_Scan_Status.csv","text/csv")
-    if results.empty:
-        st.warning("No candidates passed the scanner rules. See scan status above for data failures.")
-    else:
-        exchange_filter=st.selectbox("Exchange",["All","NSE","BSE"])
-        view=results.copy()
-        if exchange_filter!="All" and "exchange" in view.columns:
-            view=view[view["exchange"].astype(str).str.upper()==exchange_filter]
-        st.metric("Candidates in current view",len(view))
-        st.dataframe(view,use_container_width=True,hide_index=True)
-        st.download_button("⬇️ Download candidate results CSV",view.to_csv(index=False).encode("utf-8"),"TraderPrp_Scan_Results.csv","text/csv",use_container_width=True)
-    st.caption("A failed fetch is not treated as an analyzed stock. A successfully analyzed stock that did not pass rules is not shown among candidates. Scores are screening indicators, not probabilities.")
+else:
+    st.info("No saved scan progress yet. Start scanning to analyze the universe in batches.")
+
+st.caption("Daily candles are used for swing/momentum screening, not intraday live signals. Scores are screening indicators, not probabilities or financial advice.")
