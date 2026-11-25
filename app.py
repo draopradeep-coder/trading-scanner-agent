@@ -132,6 +132,14 @@ if available_trade_fields:
     for level_col, (label, column) in zip(level_cols, available_trade_fields):
         level_col.metric(f"Missing {label}", count_missing_values(df[column]))
 
+    st.caption("Non-numeric values in trade-level columns (currency symbols and commas are ignored):")
+    numeric_cols = st.columns(len(available_trade_fields))
+    for numeric_col, (label, column) in zip(numeric_cols, available_trade_fields):
+        cleaned_values = df[column].astype(str).str.replace(r"[₹,\\s]", "", regex=True)
+        parsed_values = pd.to_numeric(cleaned_values, errors="coerce")
+        invalid_values = int((~df[column].isna() & df[column].astype(str).str.strip().ne("") & parsed_values.isna()).sum())
+        numeric_col.metric(f"Invalid {label}", invalid_values)
+
 if not stock_col:
     st.warning("Stock name/symbol column was not detected. Please check your Excel headings.")
 elif duplicate_stocks:
