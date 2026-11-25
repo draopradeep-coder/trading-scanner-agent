@@ -179,6 +179,18 @@ with tab1:
                     overview_search, case=False, na=False
                 )
             ]
+        if signal_col:
+            overview_signal_filter = st.selectbox(
+                "Filter Overview by Signal",
+                ["All", "BUY", "HOLD", "SELL"],
+                key="overview_signal_filter"
+            )
+            if overview_signal_filter != "All":
+                overview_df = overview_df[
+                    overview_df[signal_col].astype(str).str.upper().str.contains(
+                        overview_signal_filter, na=False
+                    )
+                ]
         st.caption(f"Showing {len(overview_df)} of {total_stocks} stocks.")
         if overview_df.empty:
             st.info("No stocks match your search in the current scan.")
