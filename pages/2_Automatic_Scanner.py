@@ -7,6 +7,7 @@ from market_regime import detect_market_regime
 st.set_page_config(page_title="TraderPrp | Automatic Scanner",page_icon="🔎",layout="wide")
 st.title("🔎 Automatic Stock Scanner")
 st.caption("Daily-bar momentum and swing candidates across the loaded NSE/BSE cash-equity universe. Not intraday live signals.")
+st.caption("Scanner build: BSE fallback v2")
 
 @st.cache_data(ttl=3600,show_spinner=False)
 def get_universe():
@@ -38,12 +39,12 @@ except Exception as e:
     st.warning(f"Market regime detection failed: {e}")
 
 @st.cache_data(ttl=3600,show_spinner=False)
-def get_universe_data(cache_version="bse-fallback-v1"):
+def get_universe_data(cache_version="bse-fallback-v2"):
     # cache_version intentionally invalidates older NSE-only universe cache entries.
     return load_full_universe()
 
 try:
-    universe,source_errors=get_universe_data("bse-fallback-v1")
+    universe,source_errors=get_universe_data("bse-fallback-v2")
 except Exception as e:
     st.error(f"Unable to load universe: {e}")
     st.stop()
