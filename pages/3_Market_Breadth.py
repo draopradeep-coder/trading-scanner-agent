@@ -41,8 +41,13 @@ st.metric("Listings loaded", f"{listing_count:,}")
 st.metric("Unique stocks for breadth", f"{unique_count:,}", f"{listing_count-unique_count:,} confirmed duplicate ISIN listings removed")
 
 CHUNK_SIZE = 120
-if "breadth_state" not in st.session_state or st.session_state.breadth_state.get("total") != unique_count:
-    st.session_state.breadth_state = {"offset": 0, "rows": [], "errors": [], "total": unique_count, "complete": False}
+BREADTH_CALCULATION_VERSION = 2
+if (
+    "breadth_state" not in st.session_state
+    or st.session_state.breadth_state.get("total") != unique_count
+    or st.session_state.breadth_state.get("version") != BREADTH_CALCULATION_VERSION
+):
+    st.session_state.breadth_state = {"offset": 0, "rows": [], "errors": [], "total": unique_count, "complete": False, "version": BREADTH_CALCULATION_VERSION}
 state = st.session_state.breadth_state
 
 if not state.get("complete"):
@@ -66,7 +71,7 @@ if not state.get("complete"):
 else:
     st.success("Market Breadth processing completed for the deduplicated stock universe.")
     if st.button("Start a fresh calculation", use_container_width=True):
-        st.session_state.breadth_state = {"offset": 0, "rows": [], "errors": [], "total": unique_count, "complete": False}
+        st.session_state.breadth_state = {"offset": 0, "rows": [], "errors": [], "total": unique_count, "complete": False, "version": BREADTH_CALCULATION_VERSION}
         st.rerun()
 
 data = pd.DataFrame(state["rows"])
