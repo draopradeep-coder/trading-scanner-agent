@@ -66,6 +66,14 @@ except Exception as e:
     st.error(f"Unable to read Excel file: {e}")
     st.stop()
 
+# Upload summary
+st.success(f"Loaded **{uploaded_file.name}** successfully")
+summary_col1, summary_col2, summary_col3 = st.columns(3)
+summary_col1.metric("Excel Sheets", len(sheets))
+summary_col2.metric("Rows Loaded", len(df))
+summary_col3.metric("Columns Found", len(df.columns))
+st.caption("The dashboard combines all non-empty sheets from the uploaded workbook.")
+
 # Column identification
 def find_column(data, candidates):
     for col in data.columns:
