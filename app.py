@@ -200,20 +200,31 @@ for row_index, (_, row) in enumerate(df.iterrows(), start=1):
                 })
 
 if stock_col:
-    duplicate_mask = df[stock_col].astype(str).str.strip().duplicated(keep="first")
-    for row_index in df.index[duplicate_mask]:
-        row_position = df.index.get_loc(row_index) + 1
-        quality_issues.append({
-            "Dashboard Row": row_position,
-            "Stock": str(df.loc[row_index, stock_col]),
-            "Issue": "Duplicate stock name/symbol",
-            "Column": str(stock_col),
-            "Value": str(df.loc[row_index, stock_col])
-        })
+    seen_stock_names = set()
+    for row_position, stock_value in enumerate(df[stock_col].tolist(), start=1):
+        if pd.isna(stock_value):
+            continue
+        normalized_stock = str(stock_value).strip().casefold()
+        if not normalized_stock:
+            continue
+        if normalized_stock in seen_stock_names:
+            quality_issues.append({
+                "Dashboard Row": row_position,
+                "Stock": str(stock_value),
+                "Issue": "Duplicate stock name/symbol",
+                "Column": str(stock_col),
+                "Value": str(stock_value)
+            })
+        else:
+            seen_stock_names.add(normalized_stock)
 
 if quality_issues:
     quality_report = pd.DataFrame(quality_issues)
     st.caption(f"{len(quality_report)} data-quality issue(s) identified. Dashboard Row refers to the row position in the combined report.")
+    with st.expander("Preview data-quality issues", expanded=False):
+        st.dataframe(quality_report.head(20), use_container_width=True, hide_index=True)
+        if len(quality_report) > 20:
+            st.caption(f"Showing first 20 of {len(quality_report)} issues. Download the CSV for the complete list.")
     st.download_button(
         "⬇️ Download Data Quality Issues",
         data=quality_report.to_csv(index=False).encode("utf-8"),
