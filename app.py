@@ -89,6 +89,21 @@ stop_col = find_column(df, ["stop_loss", "stop loss", "sl"])
 target_col = find_column(df, ["target", "target_1", "target1", "tp1"])
 type_col = find_column(df, ["trade_type", "type", "category", "strategy"])
 
+# Data quality checks
+st.subheader("🧹 Data Quality Check")
+quality_col1, quality_col2, quality_col3 = st.columns(3)
+missing_stock_names = int(df[stock_col].isna().sum()) if stock_col else 0
+missing_signals = int(df[signal_col].isna().sum()) if signal_col else 0
+duplicate_stocks = int(df[stock_col].astype(str).str.strip().duplicated().sum()) if stock_col else 0
+quality_col1.metric("Missing Stock Names", missing_stock_names)
+quality_col2.metric("Missing Signals", missing_signals if signal_col else "N/A")
+quality_col3.metric("Duplicate Stock Rows", duplicate_stocks if stock_col else "N/A")
+if not stock_col:
+    st.warning("Stock name/symbol column was not detected. Please check your Excel headings.")
+elif duplicate_stocks:
+    st.info("Some stock names or symbols appear more than once. Review them before using the report.")
+
+
 # Overview
 st.header("📊 Overview")
 
