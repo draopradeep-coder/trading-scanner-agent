@@ -22,23 +22,19 @@ if uploaded is None:
     st.markdown("""
 <style>
 .block-container {
-    padding-top: 1.2rem;
-    padding-bottom: 1rem;
+    padding-top: 20px;
+    padding-bottom: 15px;
 }
 [data-testid="stMetric"] {
-    background: rgba(128,128,128,0.08);
+    background-color: rgba(128,128,128,0.08);
     padding: 12px;
     border-radius: 12px;
-    border: 1px solid rgba(128,128,128,0.15);
-}
-[data-testid="stDataFrame"] {
-    width: 100%;
 }
 h1 {
-    font-size: 1.8rem !important;
+    font-size: 28px !important;
 }
 h2, h3 {
-    font-size: 1.3rem !important;
+    font-size: 22px !important;
 }
 </style>
 """, unsafe_allow_html=True)
