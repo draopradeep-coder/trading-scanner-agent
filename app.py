@@ -116,6 +116,24 @@ signal_chart = pd.DataFrame({
 })
 
 st.bar_chart(signal_chart.set_index("Signal"))
+
+st.subheader("⭐ BUY Signal Watchlist")
+if signal_col:
+    buy_display_cols = [
+        col for col in [
+            stock_col, signal_col, price_col, entry_col, stop_col, target_col
+        ] if col is not None
+    ]
+    buy_rows = df.loc[
+        signals.str.contains("BUY", na=False), buy_display_cols
+    ].head(10)
+    if buy_rows.empty:
+        st.info("No BUY signals are available in the current scan.")
+    else:
+        st.dataframe(buy_rows, use_container_width=True, hide_index=True)
+else:
+    st.info("Signal column was not detected in the uploaded report.")
+
 st.divider()
 
 # Tabs
