@@ -191,6 +191,20 @@ with tab1:
                         overview_signal_filter, na=False
                     )
                 ]
+        overview_sort = st.selectbox(
+            "Sort Overview Stocks",
+            ["Original order", "Stock name A-Z", "Stock name Z-A"],
+            key="overview_stock_sort"
+        )
+        if overview_sort == "Stock name A-Z":
+            overview_df = overview_df.sort_values(
+                by=stock_col, key=lambda col: col.astype(str).str.lower()
+            )
+        elif overview_sort == "Stock name Z-A":
+            overview_df = overview_df.sort_values(
+                by=stock_col, key=lambda col: col.astype(str).str.lower(),
+                ascending=False
+            )
         st.caption(f"Showing {len(overview_df)} of {total_stocks} stocks.")
         if overview_df.empty:
             st.info("No stocks match your search in the current scan.")
