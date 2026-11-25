@@ -97,15 +97,15 @@ if signal_col:
 col1, col2, col3 = st.columns(3)
 
 col1.metric("Stocks Scanned", total_stocks)
-col2.metric("BUY Signals", int(buy_count))
-col3.metric("HOLD Signals", int(hold_count))
+col2.metric("BUY Signals", int(buy_count), delta=f"{buy_count / total_stocks * 100:.1f}% of scan")
+col3.metric("HOLD Signals", int(hold_count), delta=f"{hold_count / total_stocks * 100:.1f}% of scan")
 sell_count = 0
 
 if signal_col:
     sell_count = signals.str.contains("SELL", na=False).sum()
 
 col4, col5 = st.columns(2)
-col4.metric("SELL Signals", int(sell_count))
+col4.metric("SELL Signals", int(sell_count), delta=f"{sell_count / total_stocks * 100:.1f}% of scan")
 col5.metric("Other Signals", int(total_stocks - buy_count - hold_count - sell_count))
 st.subheader("📊 Signal Distribution")
 
