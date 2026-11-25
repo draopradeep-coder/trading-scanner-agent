@@ -99,7 +99,14 @@ col1, col2, col3 = st.columns(3)
 col1.metric("Stocks Scanned", total_stocks)
 col2.metric("BUY Signals", int(buy_count))
 col3.metric("HOLD Signals", int(hold_count))
+sell_count = 0
 
+if signal_col:
+    sell_count = signals.str.contains("SELL", na=False).sum()
+
+col4, col5 = st.columns(2)
+col4.metric("SELL Signals", int(sell_count))
+col5.metric("Other Signals", int(total_stocks - buy_count - hold_count - sell_count))
 st.divider()
 
 # Tabs
