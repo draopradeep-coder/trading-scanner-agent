@@ -9,6 +9,8 @@ UNIVERSE_BUILD = "BSE beta v2 · Sec-Fetch-Site · 2026-11-25"
 NSE_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 BSE_API_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w"
 BSE_BETA_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData_new/w"
+
+BSE_FYERS_JSON_URL = "https://public.fyers.in/sym_details/BSE_CM_sym_master.json"
 BSE_MASTER_URL = "https://api.infinn.in/BSE_symbols.txt.zip"
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123 Safari/537.36",
@@ -131,10 +133,43 @@ def _fetch_bse_master_fallback():
             failures.append(f"{url}: {str(exc)[:180]}")
     raise RuntimeError("All public BSE master mirrors failed: " + " | ".join(failures))
 
-def fetch_bse_universe():
+
+def _fetch_bse_fyers_master():
+    """Load BSE cash equities from the public FYERS symbol-master JSON."""
+    response = requests.get(BSE_FYERS_JSON_URL, headers={"User-Agent": "Mozilla/5.0"}, timeout=45)
+    response.raise_for_status()
+    payload = response.json()
+    if not isinstance(payload, dict) or len(payload) < 1000:
+        raise ValueError(f"FYERS BSE master returned unexpected payload ({len(payload) if hasattr(payload, '__len__') else 'unknown'} records)")
+    rows = []
+    for ticker, item in payload.items():
+        if not isinstance(item, dict):
+            continue
+        exch = str(item.get("exchangeName", item.get("exchange", ""))).upper()
+        segment = str(item.get("segment", "")).upper()
+        series = str(item.get("exSeries", "")).upper()
+        sym = str(item.get("exSymbol", item.get("exSymName", ""))).strip()
+        name = str(item.get("symDetails", item.get("symbolDesc", ""))).strip()
+        isin = str(item.get("isin", "")).strip()
+        if exch not in ("BSE", "12") and not str(ticker).upper().startswith("BSE:"):
+            continue
+        if series and series not in ("A", "B", "T", "X", "XT", "Z", "EQ"):
+            continue
+        if not sym:
+            sym = str(ticker).split(":")[-1].split("-")[0]
+        if sym and name:
+            rows.append({"symbol": sym, "name": name, "isin": isin, "exchange": "BSE", "series": series or "EQ"})
+    out = pd.DataFrame(rows)
+    if len(out) < 1000:
+        raise ValueError(f"FYERS BSE master yielded only {len(out)} cash-equity rows")
+    out = out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
+    out.attrs["source_warning"] = f"BSE universe loaded from FYERS public symbol master ({len(out)} rows)."
+    return out
+
+\ndef fetch_bse_universe():
     """Prefer BSE beta API, then public masters, then legacy API."""
     failures = []
-    for loader in (_fetch_bse_beta, _fetch_bse_master_fallback):
+    for loader in (_fetch_bse_beta, _fetch_bse_master_fallback, _fetch_bse_fyers_master):
         try:
             return loader()
         except Exception as exc:
