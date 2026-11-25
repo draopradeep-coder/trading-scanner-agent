@@ -24,21 +24,31 @@ with st.spinner("Fetching exchange listings. This may take a moment..."):
         st.stop()
 
 valid, issues = validate_universe(universe)
+nse_count = int(universe["exchange"].astype(str).str.upper().eq("NSE").sum()) if "exchange" in universe else 0
+bse_count = int(universe["exchange"].astype(str).str.upper().eq("BSE").sum()) if "exchange" in universe else 0
+
+# Both exchanges must be present for a full NSE+BSE validation pass.
+if nse_count == 0:
+    valid = False
+    issues = list(issues) + ["No NSE rows loaded."]
+if bse_count == 0:
+    valid = False
+    issues = list(issues) + ["No BSE rows loaded — NSE-only data is not a complete NSE+BSE universe."]
 
 if source_errors:
-    st.warning("Some exchange sources reported errors; results may be partial.")
+    st.warning("Some exchange sources reported warnings or errors; results may be partial.")
     for error in source_errors:
         st.caption(str(error))
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Total Listing Rows", len(universe))
-c2.metric("NSE Rows", int(universe["exchange"].astype(str).str.upper().eq("NSE").sum()) if "exchange" in universe else 0)
-c3.metric("BSE Rows", int(universe["exchange"].astype(str).str.upper().eq("BSE").sum()) if "exchange" in universe else 0)
+c2.metric("NSE Rows", nse_count)
+c3.metric("BSE Rows", bse_count)
 
 if valid:
-    st.success("Validation passed")
+    st.success("Validation passed — both NSE and BSE are present.")
 else:
-    st.warning("Validation returned issues")
+    st.warning("Validation returned issues; check exchange coverage.")
 if issues:
     for issue in issues:
         st.write("•", issue)
