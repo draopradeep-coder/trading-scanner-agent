@@ -92,9 +92,17 @@ type_col = find_column(df, ["trade_type", "type", "category", "strategy"])
 # Data quality checks
 st.subheader("🧹 Data Quality Check")
 quality_col1, quality_col2, quality_col3 = st.columns(3)
-missing_stock_names = int(df[stock_col].isna().sum()) if stock_col else 0
-missing_signals = int(df[signal_col].isna().sum()) if signal_col else 0
-duplicate_stocks = int(df[stock_col].astype(str).str.strip().duplicated().sum()) if stock_col else 0
+def count_missing_values(series):
+    return int((series.isna() | series.astype(str).str.strip().eq("")).sum())
+
+missing_stock_names = count_missing_values(df[stock_col]) if stock_col else 0
+missing_signals = count_missing_values(df[signal_col]) if signal_col else 0
+if stock_col:
+    stock_names = df[stock_col].astype(str).str.strip()
+    valid_stock_names = stock_names[~df[stock_col].isna() & stock_names.ne("")]
+    duplicate_stocks = int(valid_stock_names.duplicated().sum())
+else:
+    duplicate_stocks = 0
 quality_col1.metric("Missing Stock Names", missing_stock_names)
 quality_col2.metric("Missing Signals", missing_signals if signal_col else "N/A")
 quality_col3.metric("Duplicate Stock Rows", duplicate_stocks if stock_col else "N/A")
@@ -110,7 +118,7 @@ if available_trade_fields:
     st.caption("Missing values in detected trade-level columns:")
     level_cols = st.columns(len(available_trade_fields))
     for level_col, (label, column) in zip(level_cols, available_trade_fields):
-        level_col.metric(f"Missing {label}", int(df[column].isna().sum()))
+        level_col.metric(f"Missing {label}", count_missing_values(df[column]))
 
 if not stock_col:
     st.warning("Stock name/symbol column was not detected. Please check your Excel headings.")
