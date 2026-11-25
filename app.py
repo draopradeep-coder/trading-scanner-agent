@@ -151,9 +151,18 @@ with tab3:
     if type_col:
         swing = df[
             df[type_col].astype(str).str.lower().str.contains("swing", na=False)
-        ]
+        ].copy()
     else:
-        swing = df
+        swing = df.copy()
+
+    if stock_col:
+        search_stock = st.text_input("🔎 Search Swing Stock")
+        if search_stock:
+            swing = swing[
+                swing[stock_col].astype(str).str.contains(
+                    search_stock, case=False, na=False
+                )
+            ]
 
     st.dataframe(swing, use_container_width=True, hide_index=True)
 
