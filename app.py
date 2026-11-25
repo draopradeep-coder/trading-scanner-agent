@@ -444,8 +444,16 @@ with tab1:
         if overview_df.empty:
             st.info("No stocks match your search in the current scan.")
         else:
+            # Keep the main Overview table compact on mobile; full fields remain below.
+            mobile_priority_columns = [stock_col, signal_col, entry_col, stop_col, target_col]
+            mobile_priority_columns = list(dict.fromkeys(
+                column for column in mobile_priority_columns
+                if column is not None and column in overview_df.columns
+            ))
+            overview_mobile_df = overview_df[mobile_priority_columns].copy()
+            st.caption("📱 Compact view: showing Stock, Signal, Entry, Stop Loss and TP1 where available. Select a stock below for every available field.")
             st.dataframe(
-                overview_df,
+                overview_mobile_df,
                 use_container_width=True,
                 hide_index=True
             )
