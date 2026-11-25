@@ -232,6 +232,26 @@ with tab1:
                 selected_detail = overview_df[
                     overview_df[stock_col].astype(str) == selected_detail_stock
                 ].iloc[0]
+                snapshot_fields = [
+                    ("Signal", signal_col),
+                    ("Current Price", price_col),
+                    ("Entry", entry_col),
+                    ("Stop Loss", stop_col),
+                    ("Target", target_col)
+                ]
+                snapshot_fields = [
+                    (label, col) for label, col in snapshot_fields
+                    if col is not None and col in selected_detail.index
+                    and pd.notna(selected_detail[col])
+                ]
+                if snapshot_fields:
+                    st.markdown("#### 🎯 Quick Trade Snapshot")
+                    snapshot_cols = st.columns(2)
+                    for i, (label, col) in enumerate(snapshot_fields):
+                        snapshot_cols[i % 2].metric(
+                            label, str(selected_detail[col])
+                        )
+                st.markdown("#### All Available Stock Information")
                 st.dataframe(
                     selected_detail.rename("Value").to_frame(),
                     use_container_width=True
