@@ -4,6 +4,8 @@ import zipfile
 import pandas as pd
 import requests
 
+UNIVERSE_BUILD = "BSE headers v3 · 2026-11-25"
+
 NSE_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 BSE_API_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w"
 BSE_MASTER_URL = "https://api.infinn.in/BSE_symbols.txt.zip"

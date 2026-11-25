@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from universe import load_full_universe
+from universe import load_full_universe, UNIVERSE_BUILD
 from scanner_engine import scan_batch, load_progress, clear_progress
 from market_regime import detect_market_regime
 
@@ -8,6 +8,7 @@ st.set_page_config(page_title="TraderPrp | Automatic Scanner",page_icon="🔎",l
 st.title("🔎 Automatic Stock Scanner")
 st.caption("Daily-bar momentum and swing candidates across the loaded NSE/BSE cash-equity universe. Not intraday live signals.")
 st.caption("Scanner build: BSE fallback v2")
+st.caption(f"Universe module: {UNIVERSE_BUILD}")
 
 @st.cache_data(ttl=3600,show_spinner=False)
 def get_universe():
