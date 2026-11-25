@@ -20,6 +20,29 @@ uploaded = st.sidebar.file_uploader(
 if uploaded is None:
     st.info("Upload your scanner Excel report to view dashboard data.")
     st.markdown("""
+    st.markdown("""
+<style>
+.block-container {
+    padding-top: 1.2rem;
+    padding-bottom: 1rem;
+}
+[data-testid="stMetric"] {
+    background: rgba(128,128,128,0.08);
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(128,128,128,0.15);
+}
+[data-testid="stDataFrame"] {
+    width: 100%;
+}
+h1 {
+    font-size: 1.8rem !important;
+}
+h2, h3 {
+    font-size: 1.3rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
     ### How to connect your scanner
     1. Run your scanner in Google Colab.
     2. Export `Trading_Scanner_Complete_Report.xlsx`.
