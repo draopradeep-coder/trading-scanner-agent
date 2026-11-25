@@ -82,36 +82,49 @@ def _parse_bse_api_payload(payload):
 
 
 def _fetch_bse_master_fallback():
-    """Load BSE cash-equity scrip codes from the daily instrument-master mirror."""
-    response = requests.get(BSE_MASTER_URL, timeout=35)
-    response.raise_for_status()
-    with zipfile.ZipFile(BytesIO(response.content)) as archive:
-        csv_names = [name for name in archive.namelist() if name.lower().endswith((".csv", ".txt"))]
-        if not csv_names:
-            raise ValueError("BSE fallback archive contains no CSV/TXT master file.")
-        df = pd.read_csv(archive.open(csv_names[0]), dtype=str)
-    required = {"Token", "Symbol", "Instrument"}
-    if not required.issubset(df.columns):
-        raise ValueError("BSE fallback master has an unexpected schema.")
-    token = pd.to_numeric(df["Token"], errors="coerce")
-    instrument = df["Instrument"].fillna("").astype(str).str.strip().str.upper()
-    # BSE equity scrip codes are in the 500000-599999 range. Exclude the
-    # F-coded debt instruments present in the same consolidated master.
-    equity = df[token.between(500000, 599999) & ~instrument.isin(["F", "G"])].copy()
-    equity["Token"] = token.loc[equity.index].astype("int64").astype(str)
-    out = pd.DataFrame({
-        "symbol": equity["Token"].str.strip(),
-        "name": equity["Symbol"].fillna("").astype(str).str.strip(),
-        "isin": "",
-        "exchange": "BSE",
-        "series": equity["Instrument"].fillna("").astype(str).str.strip(),
-    })
-    out = out[out["symbol"].ne("") & out["name"].ne("")]
-    out = out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
-    if len(out) < 1000:
-        raise ValueError(f"BSE fallback master returned only {len(out)} eligible equity scrips.")
-    return out
-
+    """Load BSE cash-equity scrip codes from public daily instrument-master mirrors."""
+    mirrors = [
+        BSE_MASTER_URL,
+        "https://api.shoonya.com/BSE_symbols.txt.zip",
+    ]
+    failures = []
+    for url in mirrors:
+        try:
+            response = requests.get(url, timeout=45)
+            response.raise_for_status()
+            with zipfile.ZipFile(BytesIO(response.content)) as archive:
+                csv_names = [name for name in archive.namelist()
+                             if name.lower().endswith((".csv", ".txt"))]
+                if not csv_names:
+                    raise ValueError("archive contains no CSV/TXT master file")
+                with archive.open(csv_names[0]) as master_file:
+                    df = pd.read_csv(master_file, dtype=str)
+            # Public masters can vary in column case; normalize names only.
+            df.columns = [str(column).strip() for column in df.columns]
+            required = {"Token", "Symbol", "Instrument"}
+            if not required.issubset(df.columns):
+                raise ValueError("unexpected master schema: " + ", ".join(df.columns))
+            token = pd.to_numeric(df["Token"], errors="coerce")
+            instrument = df["Instrument"].fillna("").astype(str).str.strip().str.upper()
+            # BSE cash scrip codes occupy 500000-599999. Exclude F/G groups.
+            equity = df[token.between(500000, 599999) & ~instrument.isin(["F", "G"])].copy()
+            equity["Token"] = token.loc[equity.index].astype("int64").astype(str)
+            out = pd.DataFrame({
+                "symbol": equity["Token"].str.strip(),
+                "name": equity["Symbol"].fillna("").astype(str).str.strip(),
+                "isin": "",
+                "exchange": "BSE",
+                "series": equity["Instrument"].fillna("").astype(str).str.strip(),
+            })
+            out = out[out["symbol"].ne("") & out["name"].ne("")]
+            out = out.drop_duplicates(["exchange", "symbol"]).reset_index(drop=True)
+            if len(out) < 1000:
+                raise ValueError(f"only {len(out)} eligible equity scrips found")
+            out.attrs["source_warning"] = f"BSE master loaded from {url}"
+            return out
+        except Exception as exc:
+            failures.append(f"{url}: {str(exc)[:180]}")
+    raise RuntimeError("All public BSE master mirrors failed: " + " | ".join(failures))
 
 def fetch_bse_universe():
     """Prefer the daily BSE cash-equity instrument master; use BSE API only as backup."""
