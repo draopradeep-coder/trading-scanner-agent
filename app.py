@@ -107,6 +107,18 @@ quality_col1.metric("Missing Stock Names", missing_stock_names)
 quality_col2.metric("Missing Signals", missing_signals if signal_col else "N/A")
 quality_col3.metric("Duplicate Stock Rows", duplicate_stocks if stock_col else "N/A")
 
+if signal_col:
+    normalized_signals = df[signal_col].fillna("").astype(str).str.strip().str.upper()
+    valid_signal_mask = normalized_signals.str.contains(r"BUY|HOLD|SELL", regex=True, na=False)
+    unexpected_signals = sorted(normalized_signals[
+        normalized_signals.ne("") & ~valid_signal_mask
+    ].unique().tolist())
+    st.metric("Unrecognized Signal Labels", len(normalized_signals[
+        normalized_signals.ne("") & ~valid_signal_mask
+    ]))
+    if unexpected_signals:
+        st.warning("Unrecognized signal labels found: " + ", ".join(unexpected_signals[:10]))
+
 trade_level_fields = [
     ("Current Price", price_col),
     ("Entry", entry_col),
