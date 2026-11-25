@@ -173,9 +173,9 @@ with tab2:
             ]
 
     if intraday.empty:
-    st.info("No stocks found for this filter in the current scan.")
-else:
-    st.dataframe(intraday, use_container_width=True, hide_index=True)
+        st.info("No stocks found for this filter in the current scan.")
+    else:
+        st.dataframe(intraday, use_container_width=True, hide_index=True)
 
 with tab3:
     st.subheader("📈 Swing Scanner")
