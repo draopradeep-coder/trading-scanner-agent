@@ -1,17 +1,42 @@
 import streamlit as st
 
 st.set_page_config(page_title="TraderPrp | Trading Scanner", page_icon="📈", layout="wide")
-st.markdown("""<style> .block-container{padding-top:2rem;} .hero{padding:2rem 1.5rem;border-radius:18px;background:linear-gradient(120deg,#101827,#263b58);color:white;} .hero h1{font-size:2.5rem;} .tile{padding:1rem;border:1px solid rgba(128,128,128,.3);border-radius:14px;} </style>""",unsafe_allow_html=True)
+st.markdown("""<style> .block-container{padding-top:1.5rem;} .hero{padding:1.6rem 1.4rem;border-radius:18px;background:linear-gradient(120deg,#101827,#263b58);color:white;} .hero h1{font-size:2.25rem;} [data-testid="stSidebar"]{border-right:1px solid rgba(128,128,128,.18)} </style>""",unsafe_allow_html=True)
+# Sidebar brand & grouped navigation overview
+with st.sidebar:
+ st.markdown("# 📈 TraderPrp")
+ st.caption("INDIAN EQUITY RESEARCH")
+ st.divider()
+ st.markdown("### 🧭 Navigate")
+ st.markdown("**🏠 Home**\n\nUse Streamlit's page navigation below to switch research modules.")
+ st.markdown("---")
+ st.markdown("#### 🔎 Stock research")
+ st.caption("Stock Universe · Automatic Scanner")
+ st.markdown("#### 🌍 Market analysis")
+ st.caption("Market Breadth · Sector Rotation")
+ st.markdown("#### 📁 Tools")
+ st.caption("Excel Dashboard")
+ st.divider()
+ st.markdown("#### 🧾 Quick guide")
+ st.caption("1. Check market conditions\n2. Review breadth & sectors\n3. Scan candidates\n4. Validate setups and risk")
+ st.divider()
+ st.caption("Daily-bar research only · Cash equities")
 st.markdown('<div class="hero"><h1>📈 TraderPrp Trading Scanner</h1><p>Indian cash-equity research • Daily momentum & swing setups</p><p>Market context first. Stock selection second. Risk awareness always.</p></div>',unsafe_allow_html=True)
 st.write("")
-st.subheader("Your research workspace")
-cols=st.columns(3)
-with cols[0]:
- st.markdown("### 🔎 Automatic Scanner\nFind daily-bar momentum and swing candidates across the available stock universe.")
-with cols[1]:
- st.markdown("### 🌡️ Market Regime\nCheck broader market conditions before evaluating individual setups.")
-with cols[2]:
- st.markdown("### 📊 Market Breadth & Sector Rotation\nExplore participation and relative strength across sectors.")
-st.info("Use the navigation menu to open the scanner, market breadth, sector rotation and other research pages. The Excel-based dashboard is available as a separate page.")
+st.subheader("Research workspace")
+c1,c2,c3=st.columns(3)
+with c1:
+ st.markdown("### 🔎 Stock research")
+ st.write("Explore the stock universe and identify daily-bar momentum and swing candidates.")
+ st.caption("Stock Universe · Automatic Scanner")
+with c2:
+ st.markdown("### 🌡️ Market context")
+ st.write("Assess broad-market trend and participation before individual stocks.")
+ st.caption("Market Regime · Market Breadth")
+with c3:
+ st.markdown("### 🔄 Sector & tools")
+ st.write("Review sector rotation and open the spreadsheet-based analysis workspace.")
+ st.caption("Sector Rotation · Excel Dashboard")
+st.info("Select a page from the navigation menu in the sidebar. Suggested workflow: Market Regime → Market Breadth → Sector Rotation → Automatic Scanner.")
 st.markdown("---")
 st.caption("TraderPrp • Educational research tool only, not financial advice. Verify data, prices and trade risk independently.")
