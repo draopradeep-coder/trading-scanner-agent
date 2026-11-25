@@ -146,6 +146,85 @@ elif duplicate_stocks:
     st.info("Some stock names or symbols appear more than once. Review them before using the report.")
 
 
+
+# Downloadable data quality report
+quality_issues = []
+
+for row_index, (_, row) in enumerate(df.iterrows(), start=1):
+    stock_name = str(row[stock_col]).strip() if stock_col and pd.notna(row[stock_col]) else ""
+    if stock_col and not stock_name:
+        quality_issues.append({
+            "Dashboard Row": row_index,
+            "Stock": "",
+            "Issue": "Missing stock name/symbol",
+            "Column": str(stock_col),
+            "Value": ""
+        })
+    if signal_col:
+        signal_value = str(row[signal_col]).strip() if pd.notna(row[signal_col]) else ""
+        if not signal_value:
+            quality_issues.append({
+                "Dashboard Row": row_index,
+                "Stock": stock_name,
+                "Issue": "Missing signal",
+                "Column": str(signal_col),
+                "Value": ""
+            })
+        elif not any(label in signal_value.upper() for label in ["BUY", "HOLD", "SELL"]):
+            quality_issues.append({
+                "Dashboard Row": row_index,
+                "Stock": stock_name,
+                "Issue": "Unrecognized signal label",
+                "Column": str(signal_col),
+                "Value": signal_value
+            })
+    for label, column in available_trade_fields:
+        value = row[column]
+        if pd.isna(value) or str(value).strip() == "":
+            quality_issues.append({
+                "Dashboard Row": row_index,
+                "Stock": stock_name,
+                "Issue": f"Missing {label}",
+                "Column": str(column),
+                "Value": ""
+            })
+        else:
+            cleaned_value = str(value).replace("₹", "").replace(",", "").strip()
+            if pd.to_numeric(cleaned_value, errors="coerce") is pd.NA or pd.isna(pd.to_numeric(cleaned_value, errors="coerce")):
+                quality_issues.append({
+                    "Dashboard Row": row_index,
+                    "Stock": stock_name,
+                    "Issue": f"Invalid {label}",
+                    "Column": str(column),
+                    "Value": str(value)
+                })
+
+if stock_col:
+    duplicate_mask = df[stock_col].astype(str).str.strip().duplicated(keep="first")
+    for row_index in df.index[duplicate_mask]:
+        row_position = df.index.get_loc(row_index) + 1
+        quality_issues.append({
+            "Dashboard Row": row_position,
+            "Stock": str(df.loc[row_index, stock_col]),
+            "Issue": "Duplicate stock name/symbol",
+            "Column": str(stock_col),
+            "Value": str(df.loc[row_index, stock_col])
+        })
+
+if quality_issues:
+    quality_report = pd.DataFrame(quality_issues)
+    st.caption(f"{len(quality_report)} data-quality issue(s) identified. Dashboard Row refers to the row position in the combined report.")
+    st.download_button(
+        "⬇️ Download Data Quality Issues",
+        data=quality_report.to_csv(index=False).encode("utf-8"),
+        file_name="Data_Quality_Issues.csv",
+        mime="text/csv",
+        key="download_data_quality_issues"
+    )
+else:
+    st.success("No data-quality issues detected in the checked fields.")
+
+
 # Overview
 st.header("📊 Overview")
 
