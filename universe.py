@@ -114,29 +114,31 @@ def _fetch_bse_master_fallback():
 
 
 def fetch_bse_universe():
-    """Prefer BSE's API; fall back to a daily BSE cash-equity instrument master."""
+    """Prefer the daily BSE cash-equity instrument master; use BSE API only as backup."""
     try:
-        response = requests.get(
-            BSE_API_URL,
-            headers=BSE_HEADERS,
-            params={"Group": "", "Scripcode": "", "industry": "", "segment": "Equity", "status": "Active"},
-            timeout=30,
-        )
-        response.raise_for_status()
-        return _parse_bse_api_payload(response.json())
-    except Exception as api_error:
+        # Streamlit Cloud may receive 403 responses from BSE. The instrument
+        # master is the primary source so normal scans do not depend on that API.
+        return _fetch_bse_master_fallback()
+    except Exception as fallback_error:
         try:
-            fallback = _fetch_bse_master_fallback()
-            fallback.attrs["source_warning"] = (
-                "BSE primary API unavailable (" + str(api_error)[:120] +
-                "); loaded " + str(len(fallback)) + " BSE equity scrips from the daily instrument-master fallback."
+            response = requests.get(
+                BSE_API_URL,
+                headers=BSE_HEADERS,
+                params={"Group": "", "Scripcode": "", "industry": "", "segment": "Equity", "status": "Active"},
+                timeout=30,
             )
-            return fallback
-        except Exception as fallback_error:
+            response.raise_for_status()
+            api_data = _parse_bse_api_payload(response.json())
+            api_data.attrs["source_warning"] = (
+                "BSE instrument-master fallback unavailable (" + str(fallback_error)[:120] +
+                "); loaded " + str(len(api_data)) + " BSE equity scrips from the BSE API backup."
+            )
+            return api_data
+        except Exception as api_error:
             raise RuntimeError(
-                "BSE API failed: " + str(api_error)[:160] +
-                "; BSE fallback also failed: " + str(fallback_error)[:160]
-            ) from fallback_error
+                "BSE instrument-master fallback failed: " + str(fallback_error)[:160] +
+                "; BSE API backup also failed: " + str(api_error)[:160]
+            ) from api_error
 
 def load_full_universe():
     """Load both exchanges; raises if both sources fail, tolerates one source failure."""
