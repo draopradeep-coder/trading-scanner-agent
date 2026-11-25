@@ -4,7 +4,7 @@ import zipfile
 import pandas as pd
 import requests
 
-UNIVERSE_BUILD = "BSE headers v3 · 2026-11-25"
+UNIVERSE_BUILD = "BSE headers v3 Â· 2026-11-25"
 
 NSE_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
 BSE_API_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w"
@@ -90,7 +90,7 @@ def _fetch_bse_master_fallback():
     failures = []
     for url in mirrors:
         try:
-            response = requests.get(url, timeout=45)
+            response = requests.get(url, headers={"User-Agent": HEADERS["User-Agent"], "Accept": "application/octet-stream,*/*", "Referer": "https://www.bseindia.com/"}, timeout=45)
             response.raise_for_status()
             with zipfile.ZipFile(BytesIO(response.content)) as archive:
                 csv_names = [name for name in archive.namelist()
