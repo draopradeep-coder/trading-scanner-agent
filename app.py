@@ -208,6 +208,8 @@ with tab2:
                 )
             ]
 
+    st.caption(f"Showing {len(intraday)} matching Intraday stocks.")
+
     if intraday.empty:
         st.info("No stocks found for this filter in the current scan.")
     else:
@@ -251,6 +253,8 @@ with tab3:
                     swing_signal_filter, na=False
                 )
             ]
+
+    st.caption(f"Showing {len(swing)} matching Swing stocks.")
 
     if swing.empty:
         st.info("No stocks found for this filter in the current scan.")
