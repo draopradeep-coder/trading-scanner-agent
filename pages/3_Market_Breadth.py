@@ -40,8 +40,8 @@ unique_count = len(universe)
 st.metric("Listings loaded", f"{listing_count:,}")
 st.metric("Unique stocks for breadth", f"{unique_count:,}", f"{listing_count-unique_count:,} confirmed duplicate ISIN listings removed")
 
-CHUNK_SIZE = 120
-BREADTH_CALCULATION_VERSION = 2
+CHUNK_SIZE = 600
+BREADTH_CALCULATION_VERSION = 3
 if (
     "breadth_state" not in st.session_state
     or st.session_state.breadth_state.get("total") != unique_count
