@@ -38,11 +38,12 @@ except Exception as e:
     st.warning(f"Market regime detection failed: {e}")
 
 @st.cache_data(ttl=3600,show_spinner=False)
-def get_universe_data():
+def get_universe_data(cache_version="bse-fallback-v1"):
+    # cache_version intentionally invalidates older NSE-only universe cache entries.
     return load_full_universe()
 
 try:
-    universe,source_errors=get_universe_data()
+    universe,source_errors=get_universe_data("bse-fallback-v1")
 except Exception as e:
     st.error(f"Unable to load universe: {e}")
     st.stop()
