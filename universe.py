@@ -166,7 +166,7 @@ def _fetch_bse_fyers_master():
     out.attrs["source_warning"] = f"BSE universe loaded from FYERS public symbol master ({len(out)} rows)."
     return out
 
-\ndef fetch_bse_universe():
+def fetch_bse_universe():
     """Prefer BSE beta API, then public masters, then legacy API."""
     failures = []
     for loader in (_fetch_bse_beta, _fetch_bse_master_fallback, _fetch_bse_fyers_master):
