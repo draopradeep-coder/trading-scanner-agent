@@ -12,7 +12,20 @@ HEADERS = {
     "Accept": "text/csv,application/octet-stream,*/*",
     "Referer": "https://www.nseindia.com/",
 }
-BSE_HEADERS = {**HEADERS, "Accept": "application/json", "Referer": "https://www.bseindia.com/"}
+BSE_HEADERS = {
+    "Host": "api.bseindia.com",
+    "Referer": "https://www.bseindia.com/",
+    "Origin": "https://www.bseindia.com",
+    "User-Agent": "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "Sec-CH-UA": '"Google Chrome";v="155", "Chromium";v="155", "Not?A_Brand";v="99"',
+    "Sec-CH-UA-Mobile": "?0",
+    "Sec-CH-UA-Platform": '"Windows"',
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+}
 
 def _download_csv(url):
     response = requests.get(url, headers=HEADERS, timeout=25)
