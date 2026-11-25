@@ -196,6 +196,19 @@ with tab3:
                 )
             ]
 
+    if signal_col:
+        swing_signal_filter = st.selectbox(
+            "Filter Swing by Signal",
+            ["All", "BUY", "HOLD", "SELL"],
+            key="swing_signal_filter"
+        )
+        if swing_signal_filter != "All":
+            swing = swing[
+                swing[signal_col].astype(str).str.upper().str.contains(
+                    swing_signal_filter, na=False
+                )
+            ]
+
     if swing.empty:
         st.info("No stocks found for this filter in the current scan.")
     else:
