@@ -316,31 +316,38 @@ total_stocks = len(df)
 
 buy_count = 0
 hold_count = 0
+sell_count = 0
+avoid_count = 0
+wait_count = 0
 
 if signal_col:
-    signals = df[signal_col].astype(str).str.upper()
-    buy_count = signals.str.contains("BUY", na=False).sum()
-    hold_count = signals.str.contains("HOLD", na=False).sum()
+    signals = df[signal_col].astype(str).str.upper().str.strip()
+    buy_count = signals.str.contains(r"\\bBUY\\b", regex=True, na=False).sum()
+    hold_count = signals.str.contains(r"\\bHOLD\\b", regex=True, na=False).sum()
+    sell_count = signals.str.contains(r"\\bSELL\\b", regex=True, na=False).sum()
+    avoid_count = signals.str.contains(r"\\bAVOID\\b", regex=True, na=False).sum()
+    wait_count = signals.str.contains(r"\\bWAIT\\b", regex=True, na=False).sum()
+
+other_count = max(0, total_stocks - buy_count - hold_count - sell_count - avoid_count - wait_count)
+scan_denominator = max(total_stocks, 1)
 
 col1, col2, col3 = st.columns(3)
-
 col1.metric("Stocks Scanned", total_stocks)
-col2.metric("BUY Signals", int(buy_count), delta=f"{buy_count / total_stocks * 100:.1f}% of scan")
-col3.metric("HOLD Signals", int(hold_count), delta=f"{hold_count / total_stocks * 100:.1f}% of scan")
-sell_count = 0
+col2.metric("BUY Signals", int(buy_count), delta=f"{buy_count / scan_denominator * 100:.1f}% of scan")
+col3.metric("HOLD Signals", int(hold_count), delta=f"{hold_count / scan_denominator * 100:.1f}% of scan")
 
-if signal_col:
-    sell_count = signals.str.contains("SELL", na=False).sum()
+col4, col5, col6 = st.columns(3)
+col4.metric("SELL Signals", int(sell_count), delta=f"{sell_count / scan_denominator * 100:.1f}% of scan")
+col5.metric("AVOID Signals", int(avoid_count), delta=f"{avoid_count / scan_denominator * 100:.1f}% of scan")
+col6.metric("WAIT Signals", int(wait_count), delta=f"{wait_count / scan_denominator * 100:.1f}% of scan")
 
-col4, col5 = st.columns(2)
-col4.metric("SELL Signals", int(sell_count), delta=f"{sell_count / total_stocks * 100:.1f}% of scan")
-col5.metric("Other Signals", int(total_stocks - buy_count - hold_count - sell_count))
+st.metric("Other Signals", int(other_count))
 st.subheader("📊 Signal Distribution")
 
 signal_chart = pd.DataFrame({
-    "Signal": ["BUY", "HOLD", "SELL", "Other"],
+    "Signal": ["BUY", "HOLD", "SELL", "AVOID", "WAIT", "Other"],
     "Count": [int(buy_count), int(hold_count), int(sell_count),
-              int(total_stocks - buy_count - hold_count - sell_count)]
+              int(avoid_count), int(wait_count), int(other_count)]
 })
 
 st.bar_chart(signal_chart.set_index("Signal"))
