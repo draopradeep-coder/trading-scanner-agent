@@ -221,6 +221,21 @@ with tab1:
                 mime="text/csv",
                 key="download_overview_results"
             )
+            st.markdown("#### 📋 View Full Stock Details")
+            detail_options = overview_df[stock_col].dropna().astype(str).unique().tolist()
+            if detail_options:
+                selected_detail_stock = st.selectbox(
+                    "Select a stock to see all available fields",
+                    detail_options,
+                    key="overview_detail_stock"
+                )
+                selected_detail = overview_df[
+                    overview_df[stock_col].astype(str) == selected_detail_stock
+                ].iloc[0]
+                st.dataframe(
+                    selected_detail.rename("Value").to_frame(),
+                    use_container_width=True
+                )
     else:
         st.warning("Stock name column was not detected.")
         st.dataframe(df, use_container_width=True)
