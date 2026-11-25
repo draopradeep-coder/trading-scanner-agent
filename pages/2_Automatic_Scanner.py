@@ -3,9 +3,9 @@ import pandas as pd
 from universe import load_full_universe
 from scanner_engine import scan_batch, load_progress, clear_progress
 
-st.set_page_config(page_title="TraderPrp | Automatic Scanner",page_icon="📈",layout="wide")
+st.set_page_config(page_title="TraderPrp | Automatic Scanner",page_icon="🔎",layout="wide")
 st.title("🔎 Automatic Stock Scanner")
-st.caption("Daily-bar momentum and swing candidates across NSE/BSE cash equities. Not intraday signals.")
+st.caption("Daily-bar momentum and swing candidates across NSE/BSE cash equities. Not intraday live signals.")
 
 @st.cache_data(ttl=3600,show_spinner=False)
 def get_universe():
@@ -19,65 +19,56 @@ except Exception as e:
 if source_errors:
     st.warning("Some universe sources failed; scan coverage may be partial.")
     for err in source_errors: st.caption(str(err))
-
 total=len(universe)
 st.metric("Universe loaded",total)
-st.caption("Loaded universe size is not the same as completed scan coverage. Scan progress is saved in a local progress file while this app instance remains available.")
-
+st.caption("Universe size is not the same as completed scan coverage. Progress is stored locally while this app instance remains available.")
 progress=load_progress()
 if progress and progress.get("records"):
-    st.info(f"Saved scan progress detected: {len(progress['records'])} stocks recorded. Continue the scan or reset it.")
-c1,c2=st.columns(2)
-with c1:
-    resume=st.button("▶️ Resume / Scan Next Batch",type="primary",use_container_width=True)
-with c2:
-    fresh=st.button("🧹 Start Fresh Scan",use_container_width=True)
+    st.info(f"Saved progress: {len(progress['records'])} stock records. Resume, retry failed stocks, or start fresh.")
+col1,col2,col3=st.columns(3)
+with col1: resume=st.button("▶️ Resume / Scan Next Batch",type="primary",use_container_width=True)
+with col2: retry=st.button("🔁 Retry Failed Stocks",use_container_width=True)
+with col3: fresh=st.button("🆕 Start Fresh Scan",use_container_width=True)
 if fresh:
     clear_progress()
-    progress=None
-    st.success("Saved scan progress cleared. Press Resume / Scan Next Batch to start.")
-if resume or fresh:
-    with st.spinner("Scanning the next batch of daily stock data..."):
+    st.success("Progress cleared. Start the scan with Resume.")
+if resume or retry:
+    with st.spinner("Scanning daily stock data..."):
         try:
-            results,summary,status=scan_batch(universe,batch_size=40,retry_failed=bool(fresh))
-            st.session_state["scan_results"]=results
+            candidates,summary,status=scan_batch(universe,batch_size=40,retry_failed=retry)
+            st.session_state["scan_results"]=candidates
             st.session_state["scan_summary"]=summary
             st.session_state["scan_status"]=status
         except Exception as e:
-            st.error(f"Scan batch failed: {e}")
-
+            st.error(f"Scan failed: {e}")
 summary=st.session_state.get("scan_summary")
-results=st.session_state.get("scan_results")
-status=st.session_state.get("scan_status")
 progress=load_progress()
 if progress:
-    recs=progress.get("records",{})
-    analyzed=sum(x.get("status")=="analyzed" for x in recs.values())
-    failed=sum(x.get("status")=="failed" for x in recs.values())
-    pending=max(0,total-len(recs))
-    candidates=pd.DataFrame([x.get("result") for x in recs.values() if x.get("status")=="analyzed" and x.get("candidate") and x.get("result")])
-    if not candidates.empty: candidates=candidates.sort_values(["score","volume_ratio"],ascending=False).reset_index(drop=True)
+    records=progress.get("records",{})
+    analyzed=sum(x.get("status")=="analyzed" for x in records.values())
+    failed=sum(x.get("status")=="failed" for x in records.values())
+    remaining=max(0,total-len(records))
     a,b,c,d=st.columns(4)
-    a.metric("Recorded",len(recs),f"of {total}")
+    a.metric("Recorded",len(records),f"of {total}")
     b.metric("Analyzed",analyzed)
     c.metric("Failed",failed)
-    d.metric("Remaining",pending)
-    st.progress(min(1.0,len(recs)/max(1,total)))
-    st.caption(f"Saved progress updated: {progress.get('updated','unknown')}. Remaining stocks can be scanned in batches of 40. Failed stocks are skipped during resume; reset to retry them.")
+    d.metric("Remaining",remaining)
+    st.progress(min(1,len(records)/max(total,1)))
+    st.caption(f"Last saved: {progress.get('updated','unknown')}. Batch size: 40 stocks.")
+    candidates=pd.DataFrame([x.get("result") for x in records.values() if x.get("status")=="analyzed" and x.get("candidate") and x.get("result")])
     if not candidates.empty:
-        exch=st.selectbox("Exchange",["All","NSE","BSE"])
-        view=candidates.copy()
-        if exch!="All": view=view[view["exchange"]==exch]
+        candidates=candidates.sort_values(["score","volume_ratio"],ascending=False).reset_index(drop=True)
+        exchange=st.selectbox("Exchange filter",["All","NSE","BSE"])
+        view=candidates if exchange=="All" else candidates[candidates["exchange"]==exchange]
         st.metric("Candidates",len(view))
         st.dataframe(view,use_container_width=True,hide_index=True)
         st.download_button("⬇️ Download candidates CSV",view.to_csv(index=False).encode("utf-8"),"TraderPrp_Candidates.csv","text/csv",use_container_width=True)
-    else: st.warning("No qualifying candidates yet. Continue scanning more batches.")
-    status_df=pd.DataFrame([{k:v for k,v in rec.items() if k!="result"} for rec in recs.values()])
+    else: st.warning("No qualifying candidates yet. Scan more batches.")
+    status_df=pd.DataFrame([{k:v for k,v in rec.items() if k!="result"} for rec in records.values()])
     if not status_df.empty:
         with st.expander("Stock scan status"):
             st.dataframe(status_df,use_container_width=True,hide_index=True)
             st.download_button("Download scan status CSV",status_df.to_csv(index=False).encode("utf-8"),"TraderPrp_Scan_Status.csv","text/csv")
 else:
-    st.info("No saved scan progress yet. Start scanning to analyze the universe in batches.")
-
-st.caption("Daily candles are used for swing/momentum screening, not intraday live signals. Scores are screening indicators, not probabilities or financial advice.")
+    st.info("No saved scan progress yet. Press Resume / Scan Next Batch to start.")
+st.caption("Daily candles are used for swing/momentum screening, not live intraday signals. Scores are screening indicators, not probabilities or financial advice.")
