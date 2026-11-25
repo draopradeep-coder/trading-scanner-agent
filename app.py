@@ -126,9 +126,21 @@ if signal_col:
     ]
     buy_rows = df.loc[
         signals.str.contains("BUY", na=False), buy_display_cols
-    ].head(10)
+    ]
+    buy_search = st.text_input(
+        "Search BUY stocks",
+        placeholder="Enter a stock name or symbol",
+        key="buy_watchlist_search"
+    )
+    if buy_search and stock_col:
+        buy_rows = buy_rows[
+            buy_rows[stock_col].astype(str).str.contains(
+                buy_search, case=False, na=False
+            )
+        ]
+    buy_rows = buy_rows.head(10)
     if buy_rows.empty:
-        st.info("No BUY signals are available in the current scan.")
+        st.info("No BUY stocks match your search in the current scan.")
     else:
         st.dataframe(buy_rows, use_container_width=True, hide_index=True)
         st.download_button(
