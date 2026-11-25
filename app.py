@@ -293,9 +293,17 @@ with tab4:
 with tab5:
     st.subheader("📜 Historical Performance")
 
-    st.info("Historical trade outcome tracking will be integrated in a future upgrade.")
+    st.info("Historical TP1, TP2 and Stop Loss outcome tracking is not available yet. This tab currently shows the uploaded scanner report, not verified historical performance.")
 
     st.dataframe(df, use_container_width=True, hide_index=True)
+
+    st.download_button(
+        "⬇️ Download Full Scanner Report",
+        data=df.to_csv(index=False).encode("utf-8"),
+        file_name="Full_Scanner_Report.csv",
+        mime="text/csv",
+        key="download_full_scanner_report"
+    )
 
 st.divider()
 
