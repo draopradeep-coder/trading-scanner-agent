@@ -31,12 +31,14 @@ if state.get("total") != len(universe):
     state = st.session_state.breadth_state
 
 if not state.get("complete"):
-    st.progress(min(state["offset"] / max(state["total"], 1), 1.0), text=f"Progress: {state["offset"]:,} / {state["total"]:,} listings attempted")
+    progress_label = "Progress: {:,} / {:,} listings attempted".format(state["offset"], state["total"])
+    st.progress(min(state["offset"] / max(state["total"], 1), 1.0), text=progress_label)
     label = "🔄 Calculate / Continue Market Breadth" if state["offset"] else "🔄 Calculate Market Breadth"
     if st.button(label, type="primary", use_container_width=True):
         end = min(state["offset"] + CHUNK_SIZE, len(universe))
         batch_universe = universe.iloc[state["offset"]:end]
-        with st.spinner(f"Calculating batch {state["offset"] + 1:,}–{end:,} of {len(universe):,}..."):
+        batch_label = "Calculating batch {:,}–{: ,} of {:,}...".format(state["offset"] + 1, end, len(universe))
+        with st.spinner(batch_label):
             data, errors = analyze_breadth(batch_universe, batch_size=40)
         state["rows"].extend(data.to_dict("records"))
         state["errors"].extend(errors)
@@ -78,9 +80,9 @@ if not data.empty:
     d.metric("Advance/Decline", f"{ratio:.2f}" if ratio != float("inf") else "∞", f"Unchanged: {unchanged}")
     st.progress(pct20 / 100, text=f"SMA20 participation: {pct20:.1f}%")
     st.progress(pct50 / 100, text=f"SMA50 participation: {pct50:.1f}%")
-    st.caption(f"Stocks with usable history: {total:,} · Attempted: {state["offset"]:,}/{state["total"]:,}")
+    st.caption("Stocks with usable history: {:,} · Attempted: {:,}/{:,}".format(total, state["offset"], state["total"]))
     if state["complete"]:
-        st.caption(f"Last calculated: {st.session_state.get("breadth_time", "")}")
+        st.caption("Last calculated: {}".format(st.session_state.get("breadth_time", "")))
     st.subheader("Stock participation data")
     view=data.sort_values("change", ascending=False).copy()
     st.dataframe(view, use_container_width=True, hide_index=True)
