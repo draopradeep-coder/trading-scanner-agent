@@ -47,8 +47,14 @@ except Exception as e:
     st.error(f"Unable to load universe: {e}")
     st.stop()
 if source_errors:
-    st.warning("Some sources failed; scan coverage may be partial.")
-    for error in source_errors: st.caption(str(error))
+    fallback_notes=[str(error) for error in source_errors if "fallback." in str(error)]
+    other_errors=[str(error) for error in source_errors if "fallback." not in str(error)]
+    if fallback_notes:
+        st.info("BSE primary API was unavailable, but the alternate daily BSE equity master loaded successfully.")
+        for note in fallback_notes: st.caption(note)
+    if other_errors:
+        st.warning("Some exchange sources failed; scan coverage may be partial.")
+        for error in other_errors: st.caption(error)
 total=len(universe)
 st.metric("Universe loaded",total)
 st.caption("Universe size is not completed scan coverage. Progress is stored locally while this app instance remains available.")
