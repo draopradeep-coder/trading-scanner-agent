@@ -37,6 +37,42 @@ if page==pages["Home"][0]:
   st.write(guidance)
   st.caption("Score uses NIFTY price vs SMA20/SMA50 and SMA50 direction, with Bank Nifty trend confirmation when data is available. It is a heuristic—not a forecast or probability.")
  else: st.warning("Risk Meter unavailable because NIFTY data could not be loaded.")
+
+ # Optional breadth snapshot; on-demand to keep Home fast.
+ st.subheader("📊 Market Breadth Snapshot")
+ st.caption("Participation across the loaded cash-equity universe. Optional scan; may take several minutes.")
+ @st.cache_data(ttl=3600, show_spinner=False)
+ def load_breadth_snapshot():
+  from universe import load_full_universe
+  from market_breadth import analyze_breadth
+  universe, source_errors = load_full_universe()
+  data, errors = analyze_breadth(universe)
+  return data, source_errors, errors, len(universe)
+ if st.button("🔄 Calculate / Refresh Breadth", use_container_width=True):
+  load_breadth_snapshot.clear()
+  st.session_state.pop("home_breadth_error",None)
+  with st.spinner("Scanning daily prices for market participation..."):
+   try: st.session_state["home_breadth"] = load_breadth_snapshot()
+   except Exception as exc: st.session_state["home_breadth_error"] = str(exc)
+ if st.session_state.get("home_breadth_error"): st.warning("Breadth unavailable: "+st.session_state["home_breadth_error"])
+ snapshot=st.session_state.get("home_breadth")
+ if snapshot:
+  data,source_errors,scan_errors,universe_count=snapshot
+  if data is not None and not data.empty:
+   total=len(data); n20=int(data["above_sma20"].sum()); n50=int(data["above_sma50"].sum())
+   pct20=n20/total*100; pct50=n50/total*100; adv=int((data["change"]>0).sum()); dec=int((data["change"]<0).sum())
+   cols=st.columns(3)
+   cols[0].metric("Above SMA20",f"{pct20:.1f}%",f"{n20}/{total}")
+   cols[1].metric("Above SMA50",f"{pct50:.1f}%",f"{n50}/{total}")
+   cols[2].metric("Advancing / Declining",f"{adv} / {dec}")
+   st.progress(pct20/100,text=f"SMA20 participation: {pct20:.1f}%")
+   st.progress(pct50/100,text=f"SMA50 participation: {pct50:.1f}%")
+   if pct20>=60 and pct50>=55 and adv>dec: st.success("Broad participation is supportive.")
+   elif pct20<40 and pct50<40 and dec>=adv: st.warning("Participation looks weak. Be selective.")
+   else: st.info("Breadth is mixed. Prioritize stronger setups and risk control.")
+   st.caption(f"Usable data: {total} of {universe_count} loaded rows. Coverage may be partial.")
+  else: st.warning("No usable breadth data returned.")
+  for issue in list(source_errors or [])+list(scan_errors or []): st.caption("Data issue: "+str(issue))
  st.subheader("Research workflow")
  c1,c2,c3=st.columns(3)
  with c1: st.markdown("### 🔎 Stock research"); st.write("Explore the stock universe and daily-bar momentum candidates.")
