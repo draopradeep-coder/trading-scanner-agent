@@ -88,19 +88,25 @@ with st.expander("📑 View Excel Sheet Breakdown"):
     st.caption("Empty sheets are listed for visibility but are not included in the combined dashboard data.")
 
 # Column identification
+def normalize_header(value):
+    return "".join(character for character in str(value).strip().lower() if character.isalnum())
+
+
 def find_column(data, candidates):
+    normalized_candidates = {normalize_header(candidate) for candidate in candidates}
     for col in data.columns:
-        if str(col).strip().lower() in candidates:
+        if normalize_header(col) in normalized_candidates:
             return col
     return None
 
-stock_col = find_column(df, ["stock", "symbol", "ticker", "name"])
-signal_col = find_column(df, ["signal", "action", "recommendation"])
-price_col = find_column(df, ["current_price", "current price", "ltp", "price"])
+
+stock_col = find_column(df, ["stock", "stock name", "symbol", "ticker", "trading symbol", "tradingsymbol", "name"])
+signal_col = find_column(df, ["signal", "trade signal", "action", "recommendation", "buy sell", "side"])
+price_col = find_column(df, ["current_price", "current price", "ltp", "last traded price", "price"])
 entry_col = find_column(df, ["entry", "entry_price", "entry price"])
 stop_col = find_column(df, ["stop_loss", "stop loss", "sl"])
-target_col = find_column(df, ["target", "target_1", "target1", "tp1"])
-type_col = find_column(df, ["trade_type", "type", "category", "strategy"])
+target_col = find_column(df, ["target", "target_1", "target1", "target price", "tp1"])
+type_col = find_column(df, ["trade_type", "trade type", "type", "category", "strategy"])
 
 # Detected column guide
 with st.expander("🔎 View Detected Excel Columns", expanded=False):
@@ -117,7 +123,7 @@ with st.expander("🔎 View Detected Excel Columns", expanded=False):
         ]
     ])
     st.dataframe(detected_columns, use_container_width=True, hide_index=True)
-    st.caption("The dashboard recognizes common headers such as Stock, Symbol, Ticker, Signal, Action, LTP, Entry, SL, Target, Type, Intraday and Swing. If a field is not detected, rename its Excel column to a recognized header and upload again.")
+    st.caption("Header matching ignores spaces, underscores, hyphens and capitalization. Common alternatives include Stock Name, Trading Symbol, Trade Signal, Buy/Sell, Last Traded Price and Target Price. If a field is not detected, rename its Excel column to a recognized header and upload again.")
 
 # Data quality checks
 st.subheader("🧹 Data Quality Check")
