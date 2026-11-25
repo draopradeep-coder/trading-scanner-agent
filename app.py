@@ -74,6 +74,19 @@ summary_col2.metric("Rows Loaded", len(df))
 summary_col3.metric("Columns Found", len(df.columns))
 st.caption("The dashboard combines all non-empty sheets from the uploaded workbook.")
 
+with st.expander("📑 View Excel Sheet Breakdown"):
+    sheet_summary = pd.DataFrame([
+        {
+            "Sheet": sheet_name,
+            "Rows": len(sheet_data),
+            "Columns": len(sheet_data.columns),
+            "Status": "Loaded" if not sheet_data.empty else "Empty (not included)"
+        }
+        for sheet_name, sheet_data in sheets.items()
+    ])
+    st.dataframe(sheet_summary, use_container_width=True, hide_index=True)
+    st.caption("Empty sheets are listed for visibility but are not included in the combined dashboard data.")
+
 # Column identification
 def find_column(data, candidates):
     for col in data.columns:
