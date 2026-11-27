@@ -34,9 +34,15 @@ if up:
         if st.button("Run historical test",type="primary"):
             outcomes=[]; signals=[]; failures=[]; progress=st.progress(0); batch=uni.head(int(limit))
             for ix,row in enumerate(batch.itertuples(index=False),start=1):
-                sym=str(row.symbol).strip(); exch=str(row.exchange).upper().strip(); ticker=sym+('.NS' if exch=='NSE' else '.BO')
+                sym=str(row.symbol).strip(); exch=str(row.exchange).upper().strip(); tickers=[sym+('.NS' if exch=='NSE' else '.BO'),sym+('.BO' if exch=='NSE' else '.NS')]
                 try:
-                    df=yf.download(ticker,period='5y',interval='1d',auto_adjust=True,progress=False,threads=False)
+                    df=None; download_errors=[]
+                    for ticker in tickers:
+                        try:
+                            candidate=yf.download(ticker,period='5y',interval='1d',auto_adjust=True,progress=False,threads=False)
+                            if candidate is not None and not candidate.empty:
+                                df=candidate; break
+                        except Exception as de: download_errors.append(f'{ticker}: {str(de)[:90]}')
                     if df is not None and not df.empty:
                         if isinstance(df.columns,pd.MultiIndex): df.columns=df.columns.get_level_values(0)
                         df=df.dropna(subset=['Open','High','Low','Close','Volume'])
@@ -48,8 +54,8 @@ if up:
                             result=simulate_trade(sig['entry_date'],sig['entry'],sig['stop_loss'],[sig['target1'],sig['target2'],sig['target3']],fwd,max_bars=60)
                             if result.get('status') not in ('INVALID','INVALID_DATA','NO_FORWARD_DATA'):
                                 result.update({'symbol':sym,'exchange':exch,'score':sig['score'],'tier':sig['tier'],'target1':sig['target1'],'target2':sig['target2'],'target3':sig['target3']}); outcomes.append(result)
-                    else: failures.append(f'{sym}: no data')
-                except Exception as e: failures.append(f'{sym}: {str(e)[:120]}')
+                    else: failures.append(f'{sym} ({exch}): no data from tickers {tickers}')
+                except Exception as e: failures.append(f'{sym} ({exch}): {str(e)[:180]}')
                 progress.progress(ix/int(limit))
             st.session_state['bt_signals']=signals; st.session_state['bt_outcomes']=outcomes; st.session_state['bt_failures']=failures
             st.success(f"Completed: {len(signals)} signals | {len(outcomes)} simulated trades | {len(failures)} failures")
