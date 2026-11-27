@@ -17,7 +17,7 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
         still=[]
         for p in active:
             if p['exit_date']<=entry_date:
-                cash+=p['pnl']; closed.append(p); symbols_active.discard(p['symbol'])
+                cash+=p['capital_used']+p['pnl']; closed.append(p); symbols_active.discard(p['symbol'])
             else: still.append(p)
         active=still
         sym=str(row['symbol'])
@@ -38,7 +38,9 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
     ending=cash; total_return=(ending-starting_capital)/starting_capital*100 if starting_capital else 0
     for p in closed: p['exit_date']=str(pd.Timestamp(p['exit_date']).date())
     curve=[starting_capital]
-    for p in sorted(closed,key=lambda x:x['exit_date']): curve.append(curve[-1]+p['pnl'])
+    running=starting_capital
+    for p in sorted(closed,key=lambda x:x['exit_date']):
+        running+=p['pnl']; curve.append(running)
     peak=curve[0]; maxdd=0
     for val in curve:
         peak=max(peak,val); maxdd=min(maxdd,(val-peak)/peak*100 if peak else 0)
