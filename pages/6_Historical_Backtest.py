@@ -69,6 +69,7 @@ if 'bt_outcomes' in st.session_state:
         stats=summarize_backtest(trades.to_dict('records'))
         c=st.columns(4); c[0].metric("Trades",stats['trades']); c[1].metric("Win rate",f"{stats['win_rate_pct']}%"); c[2].metric("Profit factor",stats['profit_factor']); c[3].metric("Per-share P&L sum",stats['total_pnl_per_share_sum'])
         st.caption("P&L sums per-share outcomes across trades (not portfolio returns). Fees, slippage, position sizing, overlapping trades and dividends are excluded.")
+        st.warning("Signals may overlap in time, including multiple trades in the same stock. These results are signal-level research, not portfolio performance.")
         st.subheader("Outcome distribution")
         st.bar_chart(trades['status'].value_counts())
         st.subheader("Trades")
