@@ -3,6 +3,7 @@ import pandas as pd
 import yfinance as yf
 from historical_signal_engine import historical_signal
 from backtest_engine import simulate_trade, summarize_backtest
+from portfolio_engine import simulate_portfolio
 
 st.title("🧪 Historical Strategy Backtest")
 st.caption("Research-only backtest for NSE/BSE cash equities. Data availability and survivorship bias limit conclusions.")
@@ -70,6 +71,15 @@ if 'bt_outcomes' in st.session_state:
         c=st.columns(4); c[0].metric("Trades",stats['trades']); c[1].metric("Win rate",f"{stats['win_rate_pct']}%"); c[2].metric("Profit factor",stats['profit_factor']); c[3].metric("Per-share P&L sum",stats['total_pnl_per_share_sum'])
         st.caption("P&L sums per-share outcomes across trades (not portfolio returns). Fees, slippage, position sizing, overlapping trades and dividends are excluded.")
         st.warning("Signals may overlap in time, including multiple trades in the same stock. These results are signal-level research, not portfolio performance.")
+        st.subheader("Portfolio simulation (non-overlapping, risk-sized)")
+        capital=st.number_input("Starting capital (₹)",min_value=10000,value=100000,step=10000,key="bt_capital")
+        risk=st.slider("Risk per trade (% of equity)",min_value=0.1,max_value=2.0,value=0.5,step=0.1,key="bt_risk")
+        alloc=st.slider("Max allocation per trade (% of equity)",min_value=5,max_value=50,value=20,step=5,key="bt_alloc")
+        maxpos=st.slider("Maximum simultaneous positions",min_value=1,max_value=10,value=5,key="bt_maxpos")
+        port=simulate_portfolio(trades.to_dict("records"),starting_capital=float(capital),risk_pct=float(risk)/100,max_allocation_pct=float(alloc)/100,max_positions=int(maxpos))
+        ps=port["summary"]; pm=st.columns(4); pm[0].metric("Ending capital",f"₹{ps['ending_capital']:,.0f}"); pm[1].metric("Portfolio return",f"{ps['return_pct']}%"); pm[2].metric("Portfolio PF",ps['profit_factor']); pm[3].metric("Max drawdown",f"{ps['max_drawdown_pct']}%")
+        st.caption("Approximate portfolio simulation: one active trade per symbol, risk-sized, capped position allocation and concurrent positions. No fees, taxes, slippage or dividends. Exit-time event ordering is simplified.")
+        if port["trades"]: st.dataframe(pd.DataFrame(port["trades"]),hide_index=True,use_container_width=True)
         st.subheader("Outcome distribution")
         st.bar_chart(trades['status'].value_counts())
         st.subheader("Trades")
