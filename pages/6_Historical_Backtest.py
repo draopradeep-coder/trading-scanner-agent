@@ -8,7 +8,6 @@ st.title("🧪 Historical Strategy Backtest")
 st.caption("Research-only backtest for NSE/BSE cash equities. Upload a symbol universe; data availability and survivorship bias limit conclusions.")
 up=st.file_uploader("Upload stock universe CSV or Excel (symbol, exchange columns)",type=["csv","xlsx","xls"])
 if up:
-    try:
         uni=pd.read_csv(up) if up.name.endswith('.csv') else pd.read_excel(up)
         uni.columns=[str(c).strip().lower() for c in uni.columns]
         if 'symbol' not in uni.columns: st.error("Universe must contain a symbol column.")
