@@ -59,6 +59,9 @@ if up:
                 progress.progress(ix/int(limit))
             st.session_state['bt_signals']=signals; st.session_state['bt_outcomes']=outcomes; st.session_state['bt_failures']=failures
             st.success(f"Completed: {len(signals)} signals | {len(outcomes)} simulated trades | {len(failures)} failures")
+if st.session_state.get('bt_failures'):
+    with st.expander('View data failures'):
+        st.write(st.session_state['bt_failures'])
 if 'bt_outcomes' in st.session_state:
     trades=pd.DataFrame(st.session_state['bt_outcomes']); sigs=pd.DataFrame(st.session_state.get('bt_signals',[]))
     if trades.empty: st.warning("No trade outcomes available in this run.")
