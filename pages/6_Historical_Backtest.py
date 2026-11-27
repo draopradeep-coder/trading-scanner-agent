@@ -34,7 +34,7 @@ if up:
         if st.button("Run historical test",type="primary"):
             outcomes=[]; signals=[]; failures=[]; progress=st.progress(0); batch=uni.head(int(limit))
             for ix,row in enumerate(batch.itertuples(index=False),start=1):
-                sym=str(row.symbol).strip(); exch=str(row.exchange).upper().strip(); tickers=[sym+('.NS' if exch=='NSE' else '.BO'),sym+('.BO' if exch=='NSE' else '.NS')]
+                sym=str(row.symbol).strip().upper(); exch=str(row.exchange).upper().strip(); base_sym=sym.removesuffix('.NS').removesuffix('.BO'); tickers=[base_sym+('.NS' if exch=='NSE' else '.BO'),base_sym+('.BO' if exch=='NSE' else '.NS')]
                 try:
                     df=None; download_errors=[]
                     for ticker in tickers:
