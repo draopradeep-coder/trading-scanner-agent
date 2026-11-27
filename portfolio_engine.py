@@ -31,11 +31,12 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
         qty=min(qty,int(cap_limit/entry))
         if qty<=0: continue
         capital_used=qty*entry; pnl=qty*(exit_price-entry)
-        p={'symbol':sym,'signal_date':str(entry_date.date()),'exit_date':str(row['exit_date'].date()),'entry':entry,'exit':exit_price,'stop':stop,'quantity':qty,'capital_used':round(capital_used,2),'pnl':round(pnl,2),'status':row.get('status','')}
+        p={'symbol':sym,'signal_date':str(entry_date.date()),'exit_date':pd.Timestamp(row['exit_date']),'entry':entry,'exit':exit_price,'stop':stop,'quantity':qty,'capital_used':round(capital_used,2),'pnl':round(pnl,2),'status':row.get('status','')}
         cash-=capital_used; active.append(p); symbols_active.add(sym)
     for p in active:
         cash+=p['capital_used']+p['pnl']; closed.append(p)
     ending=cash; total_return=(ending-starting_capital)/starting_capital*100 if starting_capital else 0
+    for p in closed: p['exit_date']=str(pd.Timestamp(p['exit_date']).date())
     curve=[starting_capital]
     for p in sorted(closed,key=lambda x:x['exit_date']): curve.append(curve[-1]+p['pnl'])
     peak=curve[0]; maxdd=0
