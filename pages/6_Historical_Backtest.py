@@ -26,7 +26,7 @@ if up:
         uni['symbol']=uni['symbol'].astype(str).str.strip().str.upper()
         uni['exchange']=uni['exchange'].astype(str).str.strip().str.upper()
         uni.loc[~uni['exchange'].isin(['NSE','BSE']),'exchange']='NSE'
-        uni=uni[uni['symbol'].ne('') & uni['symbol'].ne('NAN')].drop_duplicates()
+        uni=uni[~uni['symbol'].isin(['', 'NAN', 'NONE', 'NULL', '<NA>'])].drop_duplicates()
         st.success(f"Recognized {len(uni)} symbols across uploaded sheet(s).")
         with st.expander("Preview detected symbols"):
             st.dataframe(uni.head(30),hide_index=True,use_container_width=True)
