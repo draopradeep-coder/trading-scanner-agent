@@ -10,10 +10,11 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
     if df.empty or not {'signal_date','exit_date','entry','exit','stop','symbol'}.issubset(df.columns):
         return {'trades':[], 'summary':{'starting_capital':starting_capital,'ending_capital':starting_capital,'trade_count':0,'return_pct':0,'max_drawdown_pct':0}}
     df['signal_date']=pd.to_datetime(df['signal_date']); df['exit_date']=pd.to_datetime(df['exit_date'])
-    df=df.sort_values(['signal_date','symbol']).reset_index(drop=True)
+    df['entry_date']=pd.to_datetime(df['entry_date']) if 'entry_date' in df.columns else df['signal_date']
+    df=df.sort_values(['entry_date','symbol']).reset_index(drop=True)
     cash=float(starting_capital); active=[]; closed=[]; equity_points=[]; symbols_active=set()
     for _,row in df.iterrows():
-        entry_date=row['signal_date']
+        entry_date=row['entry_date']
         still=[]
         for p in active:
             if p['exit_date']<=entry_date:
@@ -31,7 +32,7 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
         qty=min(qty,int(cap_limit/entry))
         if qty<=0: continue
         capital_used=qty*entry; pnl=qty*(exit_price-entry)
-        p={'symbol':sym,'signal_date':str(entry_date.date()),'exit_date':pd.Timestamp(row['exit_date']),'entry':entry,'exit':exit_price,'stop':stop,'quantity':qty,'capital_used':round(capital_used,2),'pnl':round(pnl,2),'status':row.get('status','')}
+        p={'symbol':sym,'signal_date':str(pd.Timestamp(row['signal_date']).date()),'entry_date':str(entry_date.date()),'exit_date':pd.Timestamp(row['exit_date']),'entry':entry,'exit':exit_price,'stop':stop,'quantity':qty,'capital_used':round(capital_used,2),'pnl':round(pnl,2),'status':row.get('status','')}
         cash-=capital_used; active.append(p); symbols_active.add(sym)
     for p in active:
         cash+=p['capital_used']+p['pnl']; closed.append(p)
