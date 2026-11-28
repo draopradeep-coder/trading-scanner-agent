@@ -110,6 +110,9 @@ if 'bt_outcomes' in st.session_state:
         ps=port["summary"]; pm=st.columns(4); pm[0].metric("Ending capital",f"₹{ps['ending_capital']:,.0f}"); pm[1].metric("Portfolio return",f"{ps['return_pct']}%"); pm[2].metric("Portfolio PF",ps['profit_factor']); pm[3].metric("Max drawdown",f"{ps['max_drawdown_pct']}%")
         st.caption("Approximate portfolio simulation: one active trade per symbol, risk-sized, capped position allocation and concurrent positions. No fees, taxes, slippage or dividends. Exit-time event ordering is simplified.")
         st.caption("Portfolio engine v2 — fresh calculation with reconciliation")
+        if ps.get("skipped_trade_count",0):
+            st.warning("Portfolio simulation skipped "+str(ps.get('skipped_trade_count',0))+" candidate(s): "+str(ps.get('skip_reasons',{})))
+            if port.get("skipped_trades"): st.dataframe(pd.DataFrame(port["skipped_trades"]),hide_index=True,use_container_width=True)
         if abs(float(ps['ending_capital'])-float(capital)-float(ps['net_pnl']))>0.01:
             st.error("Accounting validation failed — inspect before trusting these results.")
         else:
