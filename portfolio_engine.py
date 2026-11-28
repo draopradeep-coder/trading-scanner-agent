@@ -45,7 +45,9 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
     peak=curve[0]; maxdd=0
     for val in curve:
         peak=max(peak,val); maxdd=min(maxdd,(val-peak)/peak*100 if peak else 0)
+    curve_reconciles=bool(curve) and abs(curve[-1]-ending)<=0.01
+    if not curve_reconciles: raise ValueError('Equity curve does not reconcile to ending capital')
     wins=[p['pnl'] for p in closed if p['pnl']>0]; losses=[p['pnl'] for p in closed if p['pnl']<0]
-    summary={'starting_capital':round(starting_capital,2),'ending_capital':round(ending,2),'trade_count':len(closed),'return_pct':round(total_return,2),'win_rate_pct':round(len(wins)/len(closed)*100,2) if closed else 0,'profit_factor':round(sum(wins)/abs(sum(losses)),2) if losses else (float('inf') if wins else 0),'max_drawdown_pct':round(maxdd,2),'net_pnl':round(ending-starting_capital,2)}
+    summary={'starting_capital':round(starting_capital,2),'ending_capital':round(ending,2),'trade_count':len(closed),'return_pct':round(total_return,2),'win_rate_pct':round(len(wins)/len(closed)*100,2) if closed else 0,'profit_factor':round(sum(wins)/abs(sum(losses)),2) if losses else (float('inf') if wins else 0),'max_drawdown_pct':round(maxdd,2),'net_pnl':round(ending-starting_capital,2),'equity_curve_reconciles':curve_reconciles,'max_drawdown_method':'realized exit sequence'}
     if abs(ending-(starting_capital+sum(p['pnl'] for p in closed)))>0.01: raise ValueError('Portfolio accounting reconciliation failed')
     return {'trades':closed,'summary':summary,'equity_curve':{'date':curve_dates,'equity':curve},'engine_version':'2'}
