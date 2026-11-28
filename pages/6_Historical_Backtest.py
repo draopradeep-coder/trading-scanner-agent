@@ -79,6 +79,16 @@ if 'bt_outcomes' in st.session_state:
         port=simulate_portfolio(trades.to_dict("records"),starting_capital=float(capital),risk_pct=float(risk)/100,max_allocation_pct=float(alloc)/100,max_positions=int(maxpos))
         ps=port["summary"]; pm=st.columns(4); pm[0].metric("Ending capital",f"₹{ps['ending_capital']:,.0f}"); pm[1].metric("Portfolio return",f"{ps['return_pct']}%"); pm[2].metric("Portfolio PF",ps['profit_factor']); pm[3].metric("Max drawdown",f"{ps['max_drawdown_pct']}%")
         st.caption("Approximate portfolio simulation: one active trade per symbol, risk-sized, capped position allocation and concurrent positions. No fees, taxes, slippage or dividends. Exit-time event ordering is simplified.")
+        st.caption("Portfolio engine v2 — fresh calculation with reconciliation")
+        if abs(float(ps['ending_capital'])-float(capital)-float(ps['net_pnl']))>0.01:
+            st.error("Accounting validation failed — inspect before trusting these results.")
+        else:
+            st.success("Accounting validation passed: starting capital + net P&L = ending capital.")
+        if port.get('equity_curve'):
+            st.subheader("Realized equity curve")
+            ec=pd.DataFrame(port['equity_curve']).set_index('date')
+            st.line_chart(ec)
+
         if port["trades"]: st.dataframe(pd.DataFrame(port["trades"]),hide_index=True,use_container_width=True)
         st.subheader("Outcome distribution")
         st.bar_chart(trades['status'].value_counts())
