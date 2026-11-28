@@ -12,7 +12,7 @@ def monitor_trade(entry_date, entry, stop, targets, daily_bars, quantities=None,
     bars['Date']=pd.to_datetime(bars['Date'],errors='coerce'); bars=bars[bars['Date']>pd.to_datetime(entry_date)].sort_values('Date')
     alloc=quantities if quantities is not None else [1/3,1/3,1/3]
     if len(alloc)!=3 or sum(alloc)<=0 or any(x<0 for x in alloc): return {'status':'INVALID_ALLOCATIONS','events':[]}
-    alloc=[float(x)/sum(alloc) for x in alloc]; total=10000 if quantities is None else sum(quantities); remaining=float(total); portions=[total*x for x in alloc]
+    alloc=[float(x)/sum(alloc) for x in alloc]; total=int(10000 if quantities is None else sum(quantities)); remaining=int(total); portions=[int(total*x) for x in alloc]; portions[-1]=total-sum(portions[:-1])
     events=[]; realized=0.0; active_stop=float(stop); hit=[False]*3; status='OPEN'
     for _,bar in bars.iterrows():
         if remaining<=0: status='CLOSED'; break
@@ -23,7 +23,7 @@ def monitor_trade(entry_date, entry, stop, targets, daily_bars, quantities=None,
             remaining=0; status='STOP'; break
         for i,target in enumerate(targets):
             if not hit[i] and hi>=target and remaining>0:
-                q=min(remaining,portions[i]); fill=op if op>=target else target; pnl=(fill-entry)*q; realized+=pnl; remaining-=q; hit[i]=True
+                q=min(remaining,int(portions[i])); fill=op if op>=target else target; pnl=(fill-entry)*q; realized+=pnl; remaining-=q; hit[i]=True
                 events.append({'date':date,'event':f'TP{i+1}','fill_price':round(fill,2),'quantity':round(q,4),'pnl':round(pnl,2)})
                 if i==0 and move_stop_to_breakeven: active_stop=max(active_stop,entry)
         if remaining<=1e-8: status='TARGETS_COMPLETED'; break
