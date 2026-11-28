@@ -38,12 +38,14 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
     ending=cash; total_return=(ending-starting_capital)/starting_capital*100 if starting_capital else 0
     for p in closed: p['exit_date']=str(pd.Timestamp(p['exit_date']).date())
     curve=[starting_capital]
+    curve_dates=['Start']
     running=starting_capital
     for p in sorted(closed,key=lambda x:x['exit_date']):
-        running+=p['pnl']; curve.append(running)
+        running+=p['pnl']; curve.append(running); curve_dates.append(p['exit_date'])
     peak=curve[0]; maxdd=0
     for val in curve:
         peak=max(peak,val); maxdd=min(maxdd,(val-peak)/peak*100 if peak else 0)
     wins=[p['pnl'] for p in closed if p['pnl']>0]; losses=[p['pnl'] for p in closed if p['pnl']<0]
     summary={'starting_capital':round(starting_capital,2),'ending_capital':round(ending,2),'trade_count':len(closed),'return_pct':round(total_return,2),'win_rate_pct':round(len(wins)/len(closed)*100,2) if closed else 0,'profit_factor':round(sum(wins)/abs(sum(losses)),2) if losses else (float('inf') if wins else 0),'max_drawdown_pct':round(maxdd,2),'net_pnl':round(ending-starting_capital,2)}
-    return {'trades':closed,'summary':summary}
+    if abs(ending-(starting_capital+sum(p['pnl'] for p in closed)))>0.01: raise ValueError('Portfolio accounting reconciliation failed')
+    return {'trades':closed,'summary':summary,'equity_curve':{'date':curve_dates,'equity':curve},'engine_version':'2'}
