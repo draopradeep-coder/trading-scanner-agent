@@ -30,6 +30,9 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
         try: entry=float(row['entry']); stop=float(row['stop']); exit_price=float(row['exit'])
         except Exception: skipped.append({'symbol':sym,'reason':'invalid_trade_values'}); continue
         if entry<=0 or stop<=0 or stop>=entry or exit_price<=0: skipped.append({'symbol':sym,'reason':'invalid_price_or_stop'}); continue
+        for p in active:
+            prior=[(d,v) for d,v in p['price_path'].items() if d<=ed.normalize()]
+            if prior: p['last_price']=max(prior,key=lambda z:z[0])[1]
         mtm=sum(p['quantity']*p['last_price'] for p in active); equity=cash+mtm
         qty=int(max(0,equity*risk_pct)/(entry-stop)); qty=min(qty,int(min(cash,equity*max_allocation_pct)/entry))
         if qty<=0: skipped.append({'symbol':sym,'entry_date':str(ed.date()),'reason':'position_size_zero'}); continue
