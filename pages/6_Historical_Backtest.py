@@ -4,6 +4,7 @@ import yfinance as yf
 from historical_signal_engine import historical_signal
 from backtest_engine import simulate_trade, summarize_backtest
 from portfolio_engine import simulate_portfolio
+from monitoring_engine import monitor_trade
 
 st.title("🧪 Historical Strategy Backtest")
 st.caption("Research-only backtest for NSE/BSE cash equities. Data availability and survivorship bias limit conclusions.")
@@ -54,7 +55,7 @@ if up:
                             fwd=df.iloc[pos+2:].reset_index(); fwd=fwd.rename(columns={fwd.columns[0]:'Date'})
                             result=simulate_trade(sig['entry_date'],sig['entry'],sig['stop_loss'],[sig['target1'],sig['target2'],sig['target3']],fwd,max_bars=60)
                             if result.get('status') not in ('INVALID','INVALID_DATA','NO_FORWARD_DATA'):
-                                result.update({'symbol':sym,'exchange':exch,'signal_date':sig['signal_date'],'entry_date':sig['entry_date'],'signal_close':sig['signal_close'],'atr14_signal':sig['atr14_signal'],'score':sig['score'],'tier':sig['tier'],'rsi14':sig['rsi14'],'volume_ratio':sig['volume_ratio'],'breakout20':sig['breakout20'],'sma20':sig['sma20'],'sma50':sig['sma50'],'target1':sig['target1'],'target2':sig['target2'],'target3':sig['target3']}); path_rows=fwd.copy(); path_rows['Date']=pd.to_datetime(path_rows['Date']); path_rows=path_rows[path_rows['Date']<=pd.to_datetime(result['exit_date'])]; result['price_path']=[{'date':str(pd.Timestamp(b['Date']).date()),'close':float(b['Close'])} for _,b in path_rows.iterrows() if pd.notna(b['Close'])]; outcomes.append(result)
+                                result.update({'symbol':sym,'exchange':exch,'signal_date':sig['signal_date'],'entry_date':sig['entry_date'],'signal_close':sig['signal_close'],'atr14_signal':sig['atr14_signal'],'score':sig['score'],'tier':sig['tier'],'rsi14':sig['rsi14'],'volume_ratio':sig['volume_ratio'],'breakout20':sig['breakout20'],'sma20':sig['sma20'],'sma50':sig['sma50'],'target1':sig['target1'],'target2':sig['target2'],'target3':sig['target3']}); path_rows=fwd.copy(); path_rows['Date']=pd.to_datetime(path_rows['Date']); path_rows=path_rows[path_rows['Date']<=pd.to_datetime(result['exit_date'])]; result['price_path']=[{'date':str(pd.Timestamp(b['Date']).date()),'close':float(b['Close'])} for _,b in path_rows.iterrows() if pd.notna(b['Close'])]; stage_bars=fwd.copy(); stage_bars['Date']=pd.to_datetime(stage_bars['Date']); stage_bars=stage_bars[stage_bars['Date']>pd.to_datetime(sig['entry_date'])].head(60); stage=monitor_trade(sig['entry_date'],sig['entry'],sig['stop_loss'],[sig['target1'],sig['target2'],sig['target3']],stage_bars); result['staged_status']=stage.get('status'); result['staged_realized_pnl_per_10000']=stage.get('realized_pnl'); result['staged_remaining_qty']=stage.get('remaining_quantity'); result['staged_events']=stage.get('events',[]); result['staged_note']=stage.get('note',''); outcomes.append(result)
                     else: failures.append(f'{sym} ({exch}): no data from tickers {tickers}')
                 except Exception as e: failures.append(f'{sym} ({exch}): {str(e)[:180]}')
                 progress.progress(ix/int(limit))
@@ -70,6 +71,14 @@ if 'bt_outcomes' in st.session_state:
         stats=summarize_backtest(trades.to_dict('records'))
         c=st.columns(4); c[0].metric("Trades",stats['trades']); c[1].metric("Win rate",f"{stats['win_rate_pct']}%"); c[2].metric("Profit factor",stats['profit_factor']); c[3].metric("Per-share P&L sum",stats['total_pnl_per_share_sum'])
         st.caption("P&L sums per-share outcomes across trades (not portfolio returns). Fees, slippage, position sizing, overlapping trades and dividends are excluded.")
+        st.subheader("Staged TP1 / TP2 / TP3 monitor (OHLC simulation)")
+        if 'staged_status' in trades.columns:
+            stcols=st.columns(3); stcols[0].metric('Staged trade records',int(trades['staged_status'].notna().sum())); stcols[1].metric('Closed / target completions',int(trades['staged_status'].isin(['STOP','TARGETS_COMPLETED']).sum())); stcols[2].metric('Open at data end',int((trades['staged_status']=='OPEN').sum()))
+            staged_view=trades[['symbol','signal_date','entry_date','staged_status','staged_realized_pnl_per_10000','staged_remaining_qty','staged_events']].copy()
+            st.dataframe(staged_view,hide_index=True,use_container_width=True)
+            st.download_button('Download staged-monitor outcomes CSV',staged_view.drop(columns=['staged_events']).to_csv(index=False),file_name='staged_monitor_outcomes.csv')
+            st.caption('Standalone staged monitor applies equal-third exits by default, conservative stop-first OHLC handling and breakeven after TP1. P&L is illustrative for a default 10,000-share model; it is not linked to portfolio sizing yet. It is shown separately from the existing single-exit portfolio simulation.')
+        else: st.info('Staged monitoring data not available in these stored outcomes; rerun the backtest.')
         st.subheader("Backtest quality report")
         avg_expectancy=float(pd.to_numeric(trades.get('pnl_per_share',pd.Series(dtype=float)),errors='coerce').mean()) if 'pnl_per_share' in trades else 0.0
         qcols=st.columns(3); qcols[0].metric("Sample size",len(trades)); qcols[1].metric("Expectancy/share",f"₹{avg_expectancy:.2f}"); qcols[2].metric("Profit factor",stats.get('profit_factor','N/A'))
