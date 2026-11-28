@@ -110,8 +110,8 @@ if 'bt_outcomes' in st.session_state:
         maxpos=st.slider("Maximum simultaneous positions",min_value=1,max_value=10,value=5,key="bt_maxpos")
         port=simulate_portfolio(trades.to_dict("records"),starting_capital=float(capital),risk_pct=float(risk)/100,max_allocation_pct=float(alloc)/100,max_positions=int(maxpos))
         ps=port["summary"]; pm=st.columns(4); pm[0].metric("Ending capital",f"₹{ps['ending_capital']:,.0f}"); pm[1].metric("Portfolio return",f"{ps['return_pct']}%"); pm[2].metric("Portfolio PF",ps['profit_factor']); pm[3].metric("Max drawdown",f"{ps['max_drawdown_pct']}%")
-        st.caption("Approximate portfolio simulation: one active trade per symbol, risk-sized, capped position allocation and concurrent positions. No fees, taxes, slippage or dividends. Exit-time event ordering is simplified.")
-        st.caption("Portfolio engine v3 — entry sizing excludes unrealized future outcomes.")
+        st.caption("Approximate daily mark-to-market simulation: one active trade per symbol, risk-sized, capped position allocation and concurrent positions. Daily marks use supplied close paths; exit dates use simulated fills. No fees, taxes, slippage or dividends.")
+        st.caption("Portfolio engine v4 — daily close mark-to-market; exit dates use simulated fills.")
         if ps.get("skipped_trade_count",0):
             st.warning("Portfolio simulation skipped "+str(ps.get('skipped_trade_count',0))+" candidate(s): "+str(ps.get('skip_reasons',{})))
             if port.get("skipped_trades"): st.dataframe(pd.DataFrame(port["skipped_trades"]),hide_index=True,use_container_width=True)
@@ -120,10 +120,10 @@ if 'bt_outcomes' in st.session_state:
         else:
             st.success("Accounting validation passed: starting capital + net P&L = ending capital.")
         if port.get('equity_curve'):
-            st.subheader("Realized equity curve (not mark-to-market)")
+            st.subheader("Daily mark-to-market portfolio equity curve")
             ec=pd.DataFrame(port['equity_curve']).set_index('date')
             st.line_chart(ec)
-            st.caption("Drawdown uses grouped realized exit events only; open-position intraday drawdown is not captured.")
+            st.caption("Drawdown reflects daily closing-price marks for active positions (not intraday marks). Exit dates use simulated exit fills.")
 
         if port["trades"]: st.dataframe(pd.DataFrame(port["trades"]),hide_index=True,use_container_width=True)
         st.subheader("Outcome distribution")
