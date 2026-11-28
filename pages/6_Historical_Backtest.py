@@ -70,6 +70,19 @@ if 'bt_outcomes' in st.session_state:
         stats=summarize_backtest(trades.to_dict('records'))
         c=st.columns(4); c[0].metric("Trades",stats['trades']); c[1].metric("Win rate",f"{stats['win_rate_pct']}%"); c[2].metric("Profit factor",stats['profit_factor']); c[3].metric("Per-share P&L sum",stats['total_pnl_per_share_sum'])
         st.caption("P&L sums per-share outcomes across trades (not portfolio returns). Fees, slippage, position sizing, overlapping trades and dividends are excluded.")
+        st.subheader("Backtest quality report")
+        avg_expectancy=float(pd.to_numeric(trades.get('pnl_per_share',pd.Series(dtype=float)),errors='coerce').mean()) if 'pnl_per_share' in trades else 0.0
+        qcols=st.columns(3); qcols[0].metric("Sample size",len(trades)); qcols[1].metric("Expectancy/share",f"₹{avg_expectancy:.2f}"); qcols[2].metric("Profit factor",stats.get('profit_factor','N/A'))
+        quality_flags=[]
+        if len(trades)<100: quality_flags.append("Small sample: fewer than 100 simulated trades.")
+        elif len(trades)<300: quality_flags.append("Moderate sample: fewer than 300 trades; uncertainty remains.")
+        if float(stats.get('profit_factor',0) or 0)<=1: quality_flags.append("Profit factor is at or below 1.0; gross losses equal/exceed gross gains.")
+        if avg_expectancy<=0: quality_flags.append("Average per-share expectancy is not positive.")
+        if st.session_state.get('bt_failures'): quality_flags.append(f"Data failures: {len(st.session_state.get('bt_failures',[]))} symbol(s) failed; sample coverage is incomplete.")
+        if quality_flags:
+            for flag in quality_flags: st.warning(flag)
+        else: st.info("Basic metrics pass these screening thresholds only; this is not proof of predictive edge.")
+        st.caption("Quality screening is descriptive, not statistical validation. It does not correct survivorship bias, multiple-testing bias, market-regime dependence or incomplete price histories.")
         st.warning("Signals may overlap in time, including multiple trades in the same stock. These results are signal-level research, not portfolio performance.")
         st.subheader("Portfolio simulation (non-overlapping, risk-sized)")
         capital=st.number_input("Starting capital (₹)",min_value=10000,value=100000,step=10000,key="bt_capital")
