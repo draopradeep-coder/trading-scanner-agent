@@ -83,6 +83,23 @@ if 'bt_outcomes' in st.session_state:
             for flag in quality_flags: st.warning(flag)
         else: st.info("Basic metrics pass these screening thresholds only; this is not proof of predictive edge.")
         st.caption("Quality screening is descriptive, not statistical validation. It does not correct survivorship bias, multiple-testing bias, market-regime dependence or incomplete price histories.")
+        st.subheader("Chronological holdout check (70/30)")
+        if 'signal_date' in trades.columns and 'pnl_per_share' in trades.columns:
+            chrono=trades.copy(); chrono['signal_date']=pd.to_datetime(chrono['signal_date'],errors='coerce'); chrono=chrono.dropna(subset=['signal_date']).sort_values('signal_date')
+            cut=int(len(chrono)*0.70)
+            if len(chrono)>=20 and cut>0 and cut<len(chrono):
+                train=chrono.iloc[:cut]; hold=chrono.iloc[cut:]
+                def segment_metrics(seg):
+                    p=pd.to_numeric(seg['pnl_per_share'],errors='coerce').dropna(); win=p[p>0]; loss=p[p<0]
+                    pf=float(win.sum()/abs(loss.sum())) if loss.sum()!=0 else (float('inf') if len(win) else 0)
+                    return len(p),round(float(p.mean()),2) if len(p) else 0,round(pf,2) if pf!=float('inf') else '∞',round(float((p>0).mean()*100),1) if len(p) else 0
+                m1=segment_metrics(train);m2=segment_metrics(hold)
+                hcols=st.columns(4);hcols[0].metric('Train trades',m1[0]);hcols[1].metric('Train expectancy/share',f'₹{m1[1]}');hcols[2].metric('Holdout trades',m2[0]);hcols[3].metric('Holdout expectancy/share',f'₹{m2[1]}')
+                st.write({'Train profit factor':m1[2],'Train win rate %':m1[3],'Holdout profit factor':m2[2],'Holdout win rate %':m2[3]})
+                st.caption("Chronological split is descriptive only; overlapping signals, multiple testing and data bias remain.")
+            else: st.info("At least 20 dated trades are needed for a basic chronological split.")
+        else: st.info("Dated trade results are needed for the chronological split.")
+
         st.warning("Signals may overlap in time, including multiple trades in the same stock. These results are signal-level research, not portfolio performance.")
         st.subheader("Portfolio simulation (non-overlapping, risk-sized)")
         capital=st.number_input("Starting capital (₹)",min_value=10000,value=100000,step=10000,key="bt_capital")
