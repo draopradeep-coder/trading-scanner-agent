@@ -11,7 +11,7 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
         return {'trades':[], 'summary':{'starting_capital':starting_capital,'ending_capital':starting_capital,'trade_count':0,'return_pct':0,'max_drawdown_pct':0}}
     df['signal_date']=pd.to_datetime(df['signal_date']); df['exit_date']=pd.to_datetime(df['exit_date'])
     df['entry_date']=pd.to_datetime(df['entry_date']) if 'entry_date' in df.columns else df['signal_date']
-    df=df.sort_values(['entry_date','symbol']).reset_index(drop=True)
+    df=df.sort_values(['entry_date','symbol','signal_date'],kind='stable').reset_index(drop=True)
     cash=float(starting_capital); active=[]; closed=[]; equity_points=[]; symbols_active=set(); skipped=[]
     if starting_capital<=0 or not (0<risk_pct<=1) or not (0<max_allocation_pct<=1) or max_positions<1:
         raise ValueError('Invalid simulation settings: capital must be positive, risk/allocation in (0,1], and max_positions >= 1')
@@ -36,7 +36,11 @@ def simulate_portfolio(trades, starting_capital=100000.0, risk_pct=0.005, max_al
             skipped.append({'symbol':sym,'entry_date':str(entry_date.date()),'reason':'invalid_trade_values'}); continue
         if entry<=0 or stop<=0 or stop>=entry or exit_price<=0:
             skipped.append({'symbol':sym,'entry_date':str(entry_date.date()),'reason':'invalid_price_or_stop'}); continue
-        equity=cash+sum(p['capital_used']+p['pnl'] for p in active)
+        if pd.isna(entry_date) or pd.isna(row['exit_date']) or pd.Timestamp(row['exit_date'])<pd.Timestamp(entry_date):
+            skipped.append({'symbol':sym,'entry_date':str(entry_date),'reason':'invalid_date_order'}); continue
+        # At entry, do not credit/debit active trades with their eventual outcome.
+        # Their reserved principal is included in equity; future P&L is unknown.
+        equity=cash+sum(p['capital_used'] for p in active)
         risk_cash=max(0,equity*risk_pct); risk_per_share=entry-stop
         qty=int(risk_cash/risk_per_share) if risk_per_share>0 else 0
         cap_limit=min(cash,equity*max_allocation_pct)
