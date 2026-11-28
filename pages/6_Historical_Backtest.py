@@ -86,9 +86,11 @@ if 'bt_outcomes' in st.session_state:
         st.subheader("Chronological holdout check (70/30)")
         if 'signal_date' in trades.columns and 'pnl_per_share' in trades.columns:
             chrono=trades.copy(); chrono['signal_date']=pd.to_datetime(chrono['signal_date'],errors='coerce'); chrono=chrono.dropna(subset=['signal_date']).sort_values('signal_date')
-            cut=int(len(chrono)*0.70)
-            if len(chrono)>=20 and cut>0 and cut<len(chrono):
-                train=chrono.iloc[:cut]; hold=chrono.iloc[cut:]
+            unique_dates=chrono['signal_date'].drop_duplicates().sort_values()
+            cut_date_index=int(len(unique_dates)*0.70)
+            if len(chrono)>=20 and cut_date_index>0 and cut_date_index<len(unique_dates):
+                split_date=unique_dates.iloc[cut_date_index]
+                train=chrono[chrono['signal_date']<split_date]; hold=chrono[chrono['signal_date']>=split_date]
                 def segment_metrics(seg):
                     p=pd.to_numeric(seg['pnl_per_share'],errors='coerce').dropna(); win=p[p>0]; loss=p[p<0]
                     pf=float(win.sum()/abs(loss.sum())) if loss.sum()!=0 else (float('inf') if len(win) else 0)
@@ -109,7 +111,7 @@ if 'bt_outcomes' in st.session_state:
         port=simulate_portfolio(trades.to_dict("records"),starting_capital=float(capital),risk_pct=float(risk)/100,max_allocation_pct=float(alloc)/100,max_positions=int(maxpos))
         ps=port["summary"]; pm=st.columns(4); pm[0].metric("Ending capital",f"₹{ps['ending_capital']:,.0f}"); pm[1].metric("Portfolio return",f"{ps['return_pct']}%"); pm[2].metric("Portfolio PF",ps['profit_factor']); pm[3].metric("Max drawdown",f"{ps['max_drawdown_pct']}%")
         st.caption("Approximate portfolio simulation: one active trade per symbol, risk-sized, capped position allocation and concurrent positions. No fees, taxes, slippage or dividends. Exit-time event ordering is simplified.")
-        st.caption("Portfolio engine v2 — fresh calculation with reconciliation")
+        st.caption("Portfolio engine v3 — entry sizing excludes unrealized future outcomes.")
         if ps.get("skipped_trade_count",0):
             st.warning("Portfolio simulation skipped "+str(ps.get('skipped_trade_count',0))+" candidate(s): "+str(ps.get('skip_reasons',{})))
             if port.get("skipped_trades"): st.dataframe(pd.DataFrame(port["skipped_trades"]),hide_index=True,use_container_width=True)
@@ -118,9 +120,10 @@ if 'bt_outcomes' in st.session_state:
         else:
             st.success("Accounting validation passed: starting capital + net P&L = ending capital.")
         if port.get('equity_curve'):
-            st.subheader("Realized equity curve")
+            st.subheader("Realized equity curve (not mark-to-market)")
             ec=pd.DataFrame(port['equity_curve']).set_index('date')
             st.line_chart(ec)
+            st.caption("Drawdown uses grouped realized exit events only; open-position intraday drawdown is not captured.")
 
         if port["trades"]: st.dataframe(pd.DataFrame(port["trades"]),hide_index=True,use_container_width=True)
         st.subheader("Outcome distribution")
