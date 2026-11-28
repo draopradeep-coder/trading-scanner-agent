@@ -54,7 +54,7 @@ if up:
                             fwd=df.iloc[pos+2:].reset_index(); fwd=fwd.rename(columns={fwd.columns[0]:'Date'})
                             result=simulate_trade(sig['entry_date'],sig['entry'],sig['stop_loss'],[sig['target1'],sig['target2'],sig['target3']],fwd,max_bars=60)
                             if result.get('status') not in ('INVALID','INVALID_DATA','NO_FORWARD_DATA'):
-                                result.update({'symbol':sym,'exchange':exch,'score':sig['score'],'tier':sig['tier'],'target1':sig['target1'],'target2':sig['target2'],'target3':sig['target3']}); outcomes.append(result)
+                                result.update({'symbol':sym,'exchange':exch,'entry_date':sig['entry_date'],'score':sig['score'],'tier':sig['tier'],'target1':sig['target1'],'target2':sig['target2'],'target3':sig['target3']}); outcomes.append(result)
                     else: failures.append(f'{sym} ({exch}): no data from tickers {tickers}')
                 except Exception as e: failures.append(f'{sym} ({exch}): {str(e)[:180]}')
                 progress.progress(ix/int(limit))
